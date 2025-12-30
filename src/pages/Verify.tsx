@@ -29,7 +29,7 @@ const Verify = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
-  const [showConsent, setShowConsent] = useState(true);
+  const [showConsent, setShowConsent] = useState(false);
   const [data, setData] = useState<VerificationData>({
     guestName: "",
     roomNumber: "",
@@ -49,15 +49,11 @@ const Verify = () => {
 
   const handleConsent = (sessionToken: string) => {
     setShowConsent(false);
-
     updateData({
       sessionToken,
       consentGiven: true,
       consentTime: new Date().toISOString(),
     });
-
-    // ✅ this is the key: lock the token into the URL so refresh works
-    navigate(`/verify/${sessionToken}`, { replace: true });
   };
 
   const handleConsentCancel = () => {
