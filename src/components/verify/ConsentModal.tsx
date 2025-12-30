@@ -13,20 +13,17 @@ interface ConsentModalProps {
   onCancel: () => void;
 }
 
-const RETRY_DELAYS = [1000, 3000, 5000]; // Exponential backoff: 1s, 3s, 5s
+const RETRY_DELAYS = [1000, 3000, 5000];
 
 const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
   const [isChecked, setIsChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const retryAbortRef = useRef(false);
   const { toast } = useToast();
   const { t } = useTranslation();
-  const retryAbortRef = useRef(false);
 
-  const logConsentWithRetry = async (
-    sessionToken: string,
-    attempt: number = 0
-  ): Promise<boolean> => {
-    if (retryAbortRef.current) return false;
+  const logConsentWithRetry = async (sessionToken: string, attempt = 0): Promise<void> => {
+    if (retryAbortRef.current) return;
 
     try {
       await api.verify({
@@ -36,90 +33,59 @@ const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
         consent_time: new Date().toISOString(),
         consent_locale: "en-th",
       });
-      console.log("[Consent Flow] Consent logged successfully");
-      return true;
-    } catch (error) {
-      console.log(`[Consent Flow] Consent logging attempt ${attempt + 1} failed`);
-      
-      if (attempt < RETRY_DELAYS.length - 1 && !retryAbortRef.current) {
+      console.log("[Consent] logged successfully");
+    } catch {
+      if (attempt < RETRY_DELAYS.length - 1) {
         const delay = RETRY_DELAYS[attempt];
-        console.log(`[Consent Flow] Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return logConsentWithRetry(sessionToken, attempt + 1);
+        setTimeout(() => {
+          logConsentWithRetry(sessionToken, attempt + 1);
+        }, delay);
       }
-      
-      console.log("[Consent Flow] All retry attempts exhausted, giving up silently");
-      return false;
     }
   };
 
   const handleConsent = async () => {
+    if (!isChecked) return;
+
     setIsLoading(true);
     retryAbortRef.current = false;
 
     try {
-      // Step 1: Create session (CRITICAL - must succeed)
-      console.log("[Consent Flow] Starting verification session");
+      // STEP 1 — create session (MUST succeed)
+      const startRes = await api.verify({ action: "start" });
+      const sessionToken = startRes.session_token;
 
-      const startResponse = await api.verify({
-        action: "start",
-      });
-
-      const sessionToken = startResponse.session_token;
       if (!sessionToken) {
         throw new Error("No session token returned from server");
       }
 
-      console.log("[Consent Flow] Session created successfully");
+      console.log("[Consent] session created:", sessionToken);
 
-      // Step 2: Log consent (NON-BLOCKING)
-      console.log("[Consent Flow] Logging consent (non-blocking)");
-
-      // Track consent pending state locally
-      let consentPending = true;
-
-      // Try initial consent logging
-      try {
-        await api.verify({
+      // STEP 2 — log consent (NON-BLOCKING)
+      api
+        .verify({
           action: "log_consent",
           session_token: sessionToken,
           consent_given: true,
           consent_time: new Date().toISOString(),
           consent_locale: "en-th",
-        });
-        consentPending = false;
-        console.log("[Consent Flow] Consent logged successfully");
-      } catch (error) {
-        console.log("[Consent Flow] Initial consent logging failed, proceeding anyway");
-        
-        // Show warning toast (not destructive)
-        toast({
-          title: "Notice",
-          description: "Consent recorded and will be synced shortly.",
-          variant: "default",
-        });
-
-        // Start background retry (fire and forget)
-        setTimeout(() => {
-          logConsentWithRetry(sessionToken, 1).then(success => {
-            if (success) {
-              console.log("[Consent Flow] Background retry succeeded");
-            }
+        })
+        .catch(() => {
+          toast({
+            title: "Notice",
+            description: "Consent will be synced shortly.",
           });
-        }, RETRY_DELAYS[0]);
-      }
+          logConsentWithRetry(sessionToken);
+        });
 
-      // Proceed regardless of consent logging result
-      console.log("[Consent Flow] Proceeding with verification", { consentPending });
+      // STEP 3 — hand token upward (routing handled by Verify.tsx)
       onConsent(sessionToken);
-    } catch (error) {
-      // Only session creation errors reach here
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error("[Consent Flow] Session creation failed:", errorMessage);
+    } catch (err: any) {
+      console.error("[Consent] failed to start session:", err);
 
       toast({
         title: "Error",
-        description: `Failed to start verification: ${errorMessage}`,
+        description: err?.message || "Failed to start verification",
         variant: "destructive",
       });
     } finally {
@@ -134,52 +100,40 @@ const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
         animate={{ opacity: 1, scale: 1 }}
         className="glass rounded-3xl p-6 md:p-8 max-w-3xl w-full my-8 flex flex-col max-h-[90vh]"
       >
-        <h2 className="text-2xl md:text-3xl font-thin text-white mb-3 md:mb-6 text-center">{t("consent.title")}</h2>
+        <h2 className="text-2xl md:text-3xl font-thin text-white mb-6 text-center">{t("consent.title")}</h2>
 
-        <ScrollArea className="flex-1 mb-4 md:mb-6 -mr-4 pr-6 h-full overflow-y-auto">
-          <div className="space-y-4 md:space-y-6 text-white/90 text-sm md:text-base pr-2">
-            <div>
-              <p className="leading-relaxed mb-3">{t("consent.intro")}</p>
-              <p className="leading-relaxed mb-2 font-semibold">{t("consent.dataCollection")}</p>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>{t("consent.item1")}</li>
-                <li>{t("consent.item2")}</li>
-                <li>{t("consent.item3")}</li>
-              </ul>
-              <p className="leading-relaxed mt-4 mb-2 font-semibold">{t("consent.purpose")}</p>
-              <p className="leading-relaxed">{t("consent.purposeText")}</p>
-              <p className="leading-relaxed mt-4 mb-2 font-semibold">{t("consent.storage")}</p>
-              <p className="leading-relaxed">{t("consent.storageText")}</p>
-              <p className="leading-relaxed mt-4 mb-2 font-semibold">{t("consent.rights")}</p>
-              <p className="leading-relaxed">{t("consent.rightsText")}</p>
-            </div>
-            <div className="pt-4 md:pt-6 border-t border-white/20">
-              <h4 className="text-lg md:text-xl font-semibold text-white mb-2 md:mb-3">{t("consent.thaiTitle")}</h4>
-              <p className="leading-relaxed">{t("consent.thaiText")}</p>
+        <ScrollArea className="flex-1 mb-6 -mr-4 pr-6">
+          <div className="space-y-4 text-white/90 text-sm md:text-base pr-2">
+            <p>{t("consent.intro")}</p>
+            <p className="font-semibold">{t("consent.dataCollection")}</p>
+            <ul className="list-disc list-inside ml-4">
+              <li>{t("consent.item1")}</li>
+              <li>{t("consent.item2")}</li>
+              <li>{t("consent.item3")}</li>
+            </ul>
+            <p className="font-semibold">{t("consent.purpose")}</p>
+            <p>{t("consent.purposeText")}</p>
+            <p className="font-semibold">{t("consent.storage")}</p>
+            <p>{t("consent.storageText")}</p>
+            <p className="font-semibold">{t("consent.rights")}</p>
+            <p>{t("consent.rightsText")}</p>
+
+            <div className="pt-4 border-t border-white/20">
+              <h4 className="font-semibold">{t("consent.thaiTitle")}</h4>
+              <p>{t("consent.thaiText")}</p>
             </div>
           </div>
         </ScrollArea>
 
-        {/* Consent Checkbox */}
-        <div className="flex items-start space-x-3 mb-4 md:mb-6 p-3 md:p-4 glass rounded-xl flex-shrink-0">
-          <Checkbox
-            id="consent"
-            checked={isChecked}
-            onCheckedChange={(checked) => setIsChecked(checked === true)}
-            className="mt-1 flex-shrink-0"
-          />
-          <label htmlFor="consent" className="text-xs md:text-sm text-white leading-relaxed cursor-pointer flex-1">
+        <div className="flex items-start space-x-3 mb-6 p-4 glass rounded-xl">
+          <Checkbox id="consent" checked={isChecked} onCheckedChange={(v) => setIsChecked(v === true)} />
+          <label htmlFor="consent" className="text-sm text-white cursor-pointer">
             {t("consent.agreement")}
           </label>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col md:flex-row gap-3 flex-shrink-0">
-          <Button
-            onClick={handleConsent}
-            disabled={!isChecked || isLoading}
-            className="w-full md:flex-1 h-12 md:h-14 text-base md:text-lg"
-          >
+        <div className="flex flex-col md:flex-row gap-3">
+          <Button onClick={handleConsent} disabled={!isChecked || isLoading} className="w-full h-14 text-lg">
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -189,11 +143,12 @@ const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
               t("consent.continue")
             )}
           </Button>
+
           <Button
             variant="ghost"
             onClick={onCancel}
-            className="w-full md:flex-1 h-12 md:h-14 text-base md:text-lg text-white hover:bg-white/10"
             disabled={isLoading}
+            className="w-full h-14 text-lg text-white hover:bg-white/10"
           >
             {t("consent.cancel")}
           </Button>
