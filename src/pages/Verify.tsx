@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import WelcomeStep from "@/components/verify/WelcomeStep";
 import DocumentStep from "@/components/verify/DocumentStep";
@@ -9,9 +9,7 @@ import ConsentModal from "@/components/verify/ConsentModal";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import { api, SessionState } from "@/lib/api";
-import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 
 export type VerificationData = {
   guestName: string;
@@ -27,188 +25,129 @@ export type VerificationData = {
   consentTime?: string;
 };
 
-type SessionStatus = 'loading' | 'found' | 'expired' | 'new';
+const stepFromBackend = (step?: string): number => {
+  switch (step) {
+    case "document":
+      return 2;
+    case "selfie":
+      return 3;
+    case "results":
+      return 4;
+    case "welcome":
+    default:
+      return 1;
+  }
+};
 
 const Verify = () => {
   const { token } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const [isLoading, setIsLoading] = useState(true);
   const [step, setStep] = useState(1);
-  const [showConsent, setShowConsent] = useState(false);
-  const [sessionStatus, setSessionStatus] = useState<SessionStatus>('loading');
+  const [showConsent, setShowConsent] = useState(true);
+
   const [data, setData] = useState<VerificationData>({
     guestName: "",
     roomNumber: "",
     consentGiven: false,
   });
 
-  // Determine step from session state
-  const inferStepFromSession = (session: SessionState): number => {
-    // If current_step is provided, use it
-    if (session.current_step) {
-      if (typeof session.current_step === 'number') {
-        return session.current_step;
-      }
-      const stepMap: Record<string, number> = {
-        welcome: 1,
-        document: 2,
-        selfie: 3,
-        results: 4,
-      };
-      return stepMap[session.current_step] || 1;
-    }
-
-    // Infer from flags
-    if (session.is_verified !== undefined || session.verification_score !== undefined) {
-      return 4; // Results
-    }
-    if (session.selfie_uploaded) {
-      return 4; // Results (selfie done means we should show results)
-    }
-    if (session.document_uploaded) {
-      return 3; // Selfie step
-    }
-    if (session.guest_name && session.room_number) {
-      return 2; // Document step
-    }
-    return 1; // Welcome step
-  };
-
-  // Restore session on mount
+  // 🔁 RESUME SESSION ON LOAD / REFRESH
   useEffect(() => {
-    const restoreSession = async () => {
-      // If token is 'new', start fresh
-      if (!token || token === 'new') {
-        setSessionStatus('new');
-        setShowConsent(true);
+    const resumeSession = async () => {
+      if (!token || token === "new") {
+        setIsLoading(false);
         return;
       }
 
-      // Try to restore existing session
-      console.log('[Verify] Attempting to restore session:', token);
-      const session = await api.getSession(token);
+      try {
+        const res = await api.verify({
+          action: "get_session",
+          session_token: token,
+        });
 
-      if (session) {
-        console.log('[Verify] Session restored:', session);
-        const restoredStep = inferStepFromSession(session);
-        
+        if (!res?.session) {
+          throw new Error("Session not found");
+        }
+
+        const session = res.session;
+
         setData({
           guestName: session.guest_name || "",
           roomNumber: session.room_number || "",
           sessionToken: session.session_token,
-          consentGiven: session.consent_given,
-          verificationScore: session.verification_score,
-          livenessScore: session.liveness_score,
-          faceMatchScore: session.face_match_score,
-          isVerified: session.is_verified,
+          consentGiven: session.consent_given || false,
+          consentTime: session.consent_time || undefined,
+          isVerified: session.is_verified || false,
+          verificationScore: session.verification_score || undefined,
         });
-        setStep(restoredStep);
-        setSessionStatus('found');
-        setShowConsent(false);
-      } else {
-        console.log('[Verify] Session not found or expired');
-        setSessionStatus('expired');
+
+        setShowConsent(!session.consent_given);
+        setStep(stepFromBackend(session.current_step));
+      } catch (err: any) {
+        toast({
+          title: "Session expired",
+          description: "Please restart verification.",
+          variant: "destructive",
+        });
+        navigate("/");
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    restoreSession();
-  }, [token]);
+    resumeSession();
+  }, [token, navigate, toast]);
 
-  const handleNext = () => setStep(step + 1);
-  const handleBack = () => setStep(step - 1);
+  const updateData = (newData: Partial<VerificationData>) => {
+    setData((prev) => ({ ...prev, ...newData }));
+  };
+
+  const handleNext = () => setStep((s) => s + 1);
+  const handleBack = () => setStep((s) => s - 1);
+
   const handleRetry = () => {
     setStep(1);
     setData({ guestName: "", roomNumber: "" });
-  };
-
-  const updateData = (newData: Partial<VerificationData>) => {
-    setData({ ...data, ...newData });
+    setShowConsent(true);
   };
 
   const handleConsent = (sessionToken: string) => {
     setShowConsent(false);
-    setSessionStatus('found');
     updateData({
       sessionToken,
       consentGiven: true,
       consentTime: new Date().toISOString(),
     });
-    // Navigate to the token-specific URL so refresh works
-    navigate(`/verify/${sessionToken}`, { replace: true });
   };
 
-  const handleConsentCancel = () => {
-    navigate("/");
-  };
+  const handleConsentCancel = () => navigate("/");
 
   const handleError = (error: Error) => {
     toast({
       title: "Error",
-      description: error.message || "An error occurred. Please try again.",
+      description: error.message || "An error occurred.",
       variant: "destructive",
     });
   };
 
-  // Loading state
-  if (sessionStatus === 'loading') {
-    return (
-      <>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="glass rounded-2xl p-8 text-center"
-          >
-            <Loader2 className="w-12 h-12 animate-spin text-white mx-auto mb-4" />
-            <p className="text-white/80">Loading session...</p>
-          </motion.div>
-        </div>
-        <Footer />
-      </>
-    );
-  }
-
-  // Session expired state
-  if (sessionStatus === 'expired') {
-    return (
-      <>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl p-8 text-center max-w-md"
-          >
-            <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">⏰</span>
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Session Expired</h2>
-            <p className="text-white/70 mb-6">
-              This verification session has expired or is no longer available. Please start a new verification.
-            </p>
-            <Link to="/verify/new">
-              <Button className="w-full bg-white text-primary hover:bg-white/90">
-                Start Over
-              </Button>
-            </Link>
-          </motion.div>
-        </div>
-        <Footer />
-      </>
-    );
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-white">Loading session…</div>;
   }
 
   return (
     <>
-      {showConsent && (
-        <ConsentModal onConsent={handleConsent} onCancel={handleConsentCancel} />
-      )}
+      {showConsent && <ConsentModal onConsent={handleConsent} onCancel={handleConsentCancel} />}
 
       <div className="min-h-screen flex items-center justify-center p-4 pb-20">
         <div className="absolute top-4 right-4 z-50">
           <LanguageSwitcher />
         </div>
+
         <div className="w-full max-w-2xl">
-          {/* Progress Indicator */}
+          {/* Progress */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -218,40 +157,24 @@ const Verify = () => {
               {[1, 2, 3, 4].map((num) => (
                 <div key={num} className="flex items-center">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-300 ${
-                      step >= num
-                        ? "bg-white text-primary"
-                        : "bg-white/20 text-white/50"
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                      step >= num ? "bg-white text-primary" : "bg-white/20 text-white/50"
                     }`}
                   >
                     {num}
                   </div>
-                  {num < 4 && (
-                    <div
-                      className={`hidden md:block w-16 h-1 mx-2 transition-all duration-300 ${
-                        step > num ? "bg-white" : "bg-white/20"
-                      }`}
-                    />
-                  )}
                 </div>
               ))}
             </div>
           </motion.div>
 
-          {/* Step Content */}
           <AnimatePresence mode="wait">
             {step === 1 && (
-              <WelcomeStep
-                key="welcome"
-                data={data}
-                updateData={updateData}
-                onNext={handleNext}
-                onError={handleError}
-              />
+              <WelcomeStep data={data} updateData={updateData} onNext={handleNext} onError={handleError} />
             )}
+
             {step === 2 && (
               <DocumentStep
-                key="document"
                 data={data}
                 updateData={updateData}
                 onNext={handleNext}
@@ -259,9 +182,9 @@ const Verify = () => {
                 onError={handleError}
               />
             )}
+
             {step === 3 && (
               <SelfieStep
-                key="selfie"
                 data={data}
                 updateData={updateData}
                 onNext={handleNext}
@@ -269,14 +192,8 @@ const Verify = () => {
                 onError={handleError}
               />
             )}
-            {step === 4 && (
-              <ResultsStep
-                key="results"
-                data={data}
-                onRetry={handleRetry}
-                onHome={() => navigate("/")}
-              />
-            )}
+
+            {step === 4 && <ResultsStep data={data} onRetry={handleRetry} onHome={() => navigate("/")} />}
           </AnimatePresence>
         </div>
       </div>
