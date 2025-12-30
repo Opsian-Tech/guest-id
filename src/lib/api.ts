@@ -20,28 +20,43 @@ export interface UploadDocumentRequest {
   action: 'upload_document';
   session_token: string;
   image_data: string;
+  document_type?: string;
+  guest_name?: string;
+  room_number?: string;
 }
 
 export interface VerifyFaceRequest {
   action: 'verify_face';
   session_token: string;
   image_data: string;
+  selfie_data?: string;
 }
 
 export type VerifyRequest = StartSessionRequest | LogConsentRequest | UploadDocumentRequest | VerifyFaceRequest;
 
+// Response types - using a flexible structure to handle various backend response formats
 export interface VerifyResponse {
   success: boolean;
   session_token?: string;
   verify_url?: string;
   message?: string;
   error?: string;
+  is_verified?: boolean;
+  liveness_score?: number;
+  face_match_score?: number;
+  verification_score?: number;
+  extracted_text?: string;
   data?: {
     liveness_score?: number;
     face_match_score?: number;
     verification_score?: number;
     is_verified?: boolean;
     extracted_text?: string;
+    details?: {
+      liveness_score?: number;
+      face_match_score?: number;
+      verification_score?: number;
+    };
   };
 }
 
