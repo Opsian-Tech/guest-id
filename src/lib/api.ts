@@ -66,7 +66,7 @@ class ApiService {
     const baseUrl = getApiBaseUrl();
     const url = `${baseUrl}${endpoint}`;
     
-    console.log(`[ApiService] ${options?.method || 'GET'} ${url}`);
+    console.log(`[ApiService] ${options?.method || 'GET'} ${endpoint}`);
     if (options?.body) {
       console.log('[ApiService] Request body:', options.body);
     }
