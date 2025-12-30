@@ -1,23 +1,42 @@
-import { getApiBaseUrl } from './storage';
+import { getApiBaseUrl } from "./storage";
 
-export type VerifyAction = 'start' | 'log_consent' | 'upload_document' | 'verify_face' | 'get_session';
+/* ======================================================
+   ACTION TYPES
+====================================================== */
+
+export type VerifyAction = "start" | "log_consent" | "update_guest" | "get_session" | "upload_document" | "verify_face";
+
+/* ======================================================
+   REQUEST TYPES
+====================================================== */
 
 export interface StartSessionRequest {
-  action: 'start';
-  guestName?: string;
-  roomNumber?: string;
+  action: "start";
 }
 
 export interface LogConsentRequest {
-  action: 'log_consent';
+  action: "log_consent";
   session_token: string;
   consent_given: boolean;
   consent_time: string;
   consent_locale: string;
 }
 
+export interface UpdateGuestRequest {
+  action: "update_guest";
+  session_token: string;
+  guest_name?: string;
+  booking_ref?: string; // preferred
+  room_number?: string; // fallback (legacy naming)
+}
+
+export interface GetSessionRequest {
+  action: "get_session";
+  session_token: string;
+}
+
 export interface UploadDocumentRequest {
-  action: 'upload_document';
+  action: "upload_document";
   session_token: string;
   image_data: string;
   document_type?: string;
@@ -26,59 +45,66 @@ export interface UploadDocumentRequest {
 }
 
 export interface VerifyFaceRequest {
-  action: 'verify_face';
+  action: "verify_face";
   session_token: string;
-  image_data: string;
-  selfie_data?: string;
+  image_data?: string;
+  selfie_data: string;
 }
 
-export interface GetSessionRequest {
-  action: 'get_session';
-  session_token: string;
-}
+export type VerifyRequest =
+  | StartSessionRequest
+  | LogConsentRequest
+  | UpdateGuestRequest
+  | GetSessionRequest
+  | UploadDocumentRequest
+  | VerifyFaceRequest;
 
-export type VerifyRequest = StartSessionRequest | LogConsentRequest | UploadDocumentRequest | VerifyFaceRequest | GetSessionRequest;
+/* ======================================================
+   RESPONSE TYPES
+====================================================== */
 
-// Session state returned from backend
 export interface SessionState {
   session_token: string;
-  consent_given?: boolean;
-  guest_name?: string;
-  room_number?: string;
+  status?: string | null;
+  current_step?: string | null;
+  consent_given?: boolean | null;
+  consent_time?: string | null;
+  consent_locale?: string | null;
+  guest_name?: string | null;
+  room_number?: string | null;
   document_uploaded?: boolean;
   selfie_uploaded?: boolean;
-  verification_score?: number;
-  liveness_score?: number;
-  face_match_score?: number;
-  is_verified?: boolean;
-  current_step?: 'welcome' | 'document' | 'selfie' | 'results' | number;
+  is_verified?: boolean | null;
+  verification_score?: number | null;
+  liveness_score?: number | null;
+  face_match_score?: number | null;
 }
 
-// Response types - using a flexible structure to handle various backend response formats
 export interface VerifyResponse {
-  success: boolean;
+  success?: boolean;
   session_token?: string;
   verify_url?: string;
   message?: string;
   error?: string;
+
+  // verification results
   is_verified?: boolean;
+  verification_score?: number;
   liveness_score?: number;
   face_match_score?: number;
-  verification_score?: number;
-  extracted_text?: string;
+
+  // resume
   session?: SessionState;
+
+  // nested legacy format (backend sometimes wraps data)
   data?: {
+    is_verified?: boolean;
+    verification_score?: number;
     liveness_score?: number;
     face_match_score?: number;
-    verification_score?: number;
-    is_verified?: boolean;
-    extracted_text?: string;
-    details?: {
-      liveness_score?: number;
-      face_match_score?: number;
-      verification_score?: number;
-    };
   };
+
+  extracted_text?: string;
 }
 
 export interface AdminStats {
@@ -88,7 +114,7 @@ export interface AdminStats {
   totalCost: number;
 }
 
-export interface Session {
+export interface SessionRow {
   id: string;
   guest_name: string;
   room_number: string;
@@ -97,72 +123,69 @@ export interface Session {
   created_at: string;
 }
 
+/* ======================================================
+   API SERVICE
+====================================================== */
+
 class ApiService {
   private async fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const baseUrl = getApiBaseUrl();
     const url = `${baseUrl}${endpoint}`;
-    
-    console.log(`[ApiService] ${options?.method || 'GET'} ${endpoint}`);
+
+    console.log(`[ApiService] ${options?.method || "GET"} ${endpoint}`);
     if (options?.body) {
-      console.log('[ApiService] Request body:', options.body);
+      console.log("[ApiService] Request body:", options.body);
     }
-    
+
     const response = await fetch(url, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...options?.headers,
       },
     });
 
-    console.log(`[ApiService] Response status: ${response.status} ${response.statusText}`);
+    const rawText = await response.text();
+    console.log(`[ApiService] Response ${response.status}:`, rawText || "<empty>");
 
-    const responseText = await response.text();
-    console.log('[ApiService] Response body (raw):', responseText);
-
-    let data: T;
+    let parsed: T;
     try {
-      data = JSON.parse(responseText);
-      console.log('[ApiService] Response body (parsed):', data);
-    } catch (parseError) {
-      console.error('[ApiService] Failed to parse JSON response:', parseError);
-      throw new Error(`Failed to parse response: ${responseText}`);
+      parsed = rawText ? JSON.parse(rawText) : ({} as T);
+    } catch (err) {
+      throw new Error(`Failed to parse API response: ${rawText}`);
     }
 
     if (!response.ok) {
-      const errorData = data as { error?: string; message?: string };
-      throw new Error(errorData.error || errorData.message || `API request failed with status ${response.status}`);
+      const errorMsg = (parsed as any)?.error || (parsed as any)?.message || `API error ${response.status}`;
+      throw new Error(errorMsg);
     }
 
-    return data;
+    return parsed;
   }
 
+  /* ---------- VERIFY (all actions) ---------- */
   async verify(data: VerifyRequest): Promise<VerifyResponse> {
-    return this.fetchApi<VerifyResponse>('/api/verify', {
-      method: 'POST',
+    return this.fetchApi<VerifyResponse>("/api/verify", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async getSession(sessionToken: string): Promise<SessionState | null> {
-    try {
-      const response = await this.verify({
-        action: 'get_session',
-        session_token: sessionToken,
-      });
-      return response.session || null;
-    } catch (error) {
-      console.log('[ApiService] Session not found or expired');
-      return null;
-    }
+  /* ---------- RESUME ---------- */
+  async getSession(sessionToken: string): Promise<VerifyResponse> {
+    return this.verify({
+      action: "get_session",
+      session_token: sessionToken,
+    });
   }
 
+  /* ---------- ADMIN ---------- */
   async getAdminStats(): Promise<AdminStats> {
-    return this.fetchApi<AdminStats>('/api/admin/stats');
+    return this.fetchApi<AdminStats>("/api/admin/stats");
   }
 
-  async getAdminSessions(): Promise<Session[]> {
-    return this.fetchApi<Session[]>('/api/admin/sessions');
+  async getAdminSessions(): Promise<SessionRow[]> {
+    return this.fetchApi<SessionRow[]>("/api/admin/sessions");
   }
 }
 
