@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { api } from "@/lib/api";
 
 interface ConsentModalProps {
   onConsent: (sessionToken: string) => void;
@@ -21,39 +22,10 @@ const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
   const handleConsent = async () => {
     setIsLoading(true);
     try {
-      // Step 1: Create session
+      // Step 1: Create session via ApiService
       console.log('[Consent Flow] Step 1: Starting session creation...');
-      console.log('[Consent Flow] Calling: POST https://roomquest-id-backend.vercel.app/api/verify');
-      console.log('[Consent Flow] Request body:', JSON.stringify({ action: 'start' }));
       
-      const startResponse = await fetch('https://roomquest-id-backend.vercel.app/api/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'start',
-        }),
-      });
-
-      console.log('[Consent Flow] Step 1 Response status:', startResponse.status, startResponse.statusText);
-      
-      const startResponseText = await startResponse.text();
-      console.log('[Consent Flow] Step 1 Response body (raw):', startResponseText);
-      
-      let startData;
-      try {
-        startData = JSON.parse(startResponseText);
-        console.log('[Consent Flow] Step 1 Response body (parsed):', startData);
-      } catch (parseError) {
-        console.error('[Consent Flow] Step 1 Failed to parse JSON response:', parseError);
-        throw new Error(`Failed to parse session response: ${startResponseText}`);
-      }
-
-      if (!startResponse.ok) {
-        console.error('[Consent Flow] Step 1 FAILED - HTTP Error:', startResponse.status);
-        throw new Error(`Failed to create session: HTTP ${startResponse.status} - ${startData?.error || startData?.message || startResponseText}`);
-      }
+      const startData = await api.verify({ action: 'start' });
 
       const sessionToken = startData.session_token;
       
@@ -64,44 +36,16 @@ const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
 
       console.log('[Consent Flow] Step 1 SUCCESS - Session token:', sessionToken);
 
-      // Step 2: Log consent with session token
-      const consentPayload = {
+      // Step 2: Log consent with session token via ApiService
+      console.log('[Consent Flow] Step 2: Logging consent...');
+      
+      await api.verify({
         action: 'log_consent',
         session_token: sessionToken,
         consent_given: true,
         consent_time: new Date().toISOString(),
         consent_locale: 'en-th',
-      };
-      
-      console.log('[Consent Flow] Step 2: Logging consent...');
-      console.log('[Consent Flow] Request body:', JSON.stringify(consentPayload));
-      
-      const consentResponse = await fetch('https://roomquest-id-backend.vercel.app/api/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(consentPayload),
       });
-
-      console.log('[Consent Flow] Step 2 Response status:', consentResponse.status, consentResponse.statusText);
-      
-      const consentResponseText = await consentResponse.text();
-      console.log('[Consent Flow] Step 2 Response body (raw):', consentResponseText);
-      
-      let consentData;
-      try {
-        consentData = JSON.parse(consentResponseText);
-        console.log('[Consent Flow] Step 2 Response body (parsed):', consentData);
-      } catch (parseError) {
-        console.error('[Consent Flow] Step 2 Failed to parse JSON response:', parseError);
-        throw new Error(`Failed to parse consent response: ${consentResponseText}`);
-      }
-
-      if (!consentResponse.ok) {
-        console.error('[Consent Flow] Step 2 FAILED - HTTP Error:', consentResponse.status);
-        throw new Error(`Failed to log consent: HTTP ${consentResponse.status} - ${consentData?.error || consentData?.message || consentResponseText}`);
-      }
 
       console.log('[Consent Flow] Step 2 SUCCESS - Consent logged');
       console.log('[Consent Flow] COMPLETE - Proceeding with session token');
