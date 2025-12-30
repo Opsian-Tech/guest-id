@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import WelcomeStep from "@/components/verify/WelcomeStep";
@@ -9,42 +9,91 @@ import ConsentModal from "@/components/verify/ConsentModal";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { api } from "@/lib/api";
 
 export type VerificationData = {
   guestName: string;
   roomNumber: string;
   sessionToken?: string;
-  documentImage?: string;
-  selfieImage?: string;
   verificationScore?: number;
   isVerified?: boolean;
-  livenessScore?: number;
-  faceMatchScore?: number;
   consentGiven?: boolean;
   consentTime?: string;
+};
+
+const stepFromBackend = (step?: string) => {
+  switch (step) {
+    case "document":
+      return 2;
+    case "selfie":
+      return 3;
+    case "results":
+      return 4;
+    default:
+      return 1;
+  }
 };
 
 const Verify = () => {
   const { token } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const [isLoading, setIsLoading] = useState(true);
   const [step, setStep] = useState(1);
   const [showConsent, setShowConsent] = useState(false);
+
   const [data, setData] = useState<VerificationData>({
     guestName: "",
     roomNumber: "",
-    consentGiven: false,
   });
 
-  const handleNext = () => setStep(step + 1);
-  const handleBack = () => setStep(step - 1);
-  const handleRetry = () => {
-    setStep(1);
-    setData({ guestName: "", roomNumber: "" });
-  };
+  // 🔁 RESUME SESSION ON LOAD / REFRESH
+  useEffect(() => {
+    const loadSession = async () => {
+      if (!token || token === "new") {
+        setShowConsent(true);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const res = await api.verify({
+          action: "get_session",
+          session_token: token,
+        });
+
+        const session = res.session;
+
+        setData({
+          guestName: session.guest_name || "",
+          roomNumber: session.room_number || "",
+          sessionToken: session.session_token,
+          consentGiven: session.consent_given,
+          consentTime: session.consent_time,
+          isVerified: session.is_verified,
+          verificationScore: session.verification_score,
+        });
+
+        setShowConsent(!session.consent_given);
+        setStep(stepFromBackend(session.current_step));
+      } catch {
+        toast({
+          title: "Session expired",
+          description: "Please restart verification.",
+          variant: "destructive",
+        });
+        navigate("/");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSession();
+  }, [token, navigate, toast]);
 
   const updateData = (newData: Partial<VerificationData>) => {
-    setData({ ...data, ...newData });
+    setData((prev) => ({ ...prev, ...newData }));
   };
 
   const handleConsent = (sessionToken: string) => {
@@ -54,89 +103,53 @@ const Verify = () => {
       consentGiven: true,
       consentTime: new Date().toISOString(),
     });
+    navigate(`/verify/${sessionToken}`, { replace: true });
   };
 
-  const handleConsentCancel = () => {
-    navigate("/");
-  };
-
-  const handleError = (error: Error) => {
-    toast({
-      title: "Error",
-      description: error.message || "An error occurred. Please try again.",
-      variant: "destructive",
-    });
-  };
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-white">Loading session…</div>;
+  }
 
   return (
     <>
-      {showConsent && <ConsentModal onConsent={handleConsent} onCancel={handleConsentCancel} />}
+      {showConsent && <ConsentModal onConsent={handleConsent} onCancel={() => navigate("/")} />}
 
       <div className="min-h-screen flex items-center justify-center p-4 pb-20">
         <div className="absolute top-4 right-4 z-50">
           <LanguageSwitcher />
         </div>
-        <div className="w-full max-w-2xl">
-          {/* Progress Indicator */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl p-4 mb-6"
-          >
-            <div className="flex justify-between items-center">
-              {[1, 2, 3, 4].map((num) => (
-                <div key={num} className="flex items-center">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-300 ${
-                      step >= num ? "bg-white text-primary" : "bg-white/20 text-white/50"
-                    }`}
-                  >
-                    {num}
-                  </div>
-                  {num < 4 && (
-                    <div
-                      className={`hidden md:block w-16 h-1 mx-2 transition-all duration-300 ${
-                        step > num ? "bg-white" : "bg-white/20"
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </motion.div>
 
-          {/* Step Content */}
+        <div className="w-full max-w-2xl">
           <AnimatePresence mode="wait">
             {step === 1 && (
               <WelcomeStep
-                key="welcome"
                 data={data}
                 updateData={updateData}
-                onNext={handleNext}
-                onError={handleError}
+                onNext={() => setStep(2)}
+                onError={(e) => toast({ title: "Error", description: e.message })}
               />
             )}
             {step === 2 && (
               <DocumentStep
-                key="document"
                 data={data}
                 updateData={updateData}
-                onNext={handleNext}
-                onBack={handleBack}
-                onError={handleError}
+                onNext={() => setStep(3)}
+                onBack={() => setStep(1)}
+                onError={(e) => toast({ title: "Error", description: e.message })}
               />
             )}
             {step === 3 && (
               <SelfieStep
-                key="selfie"
                 data={data}
                 updateData={updateData}
-                onNext={handleNext}
-                onBack={handleBack}
-                onError={handleError}
+                onNext={() => setStep(4)}
+                onBack={() => setStep(2)}
+                onError={(e) => toast({ title: "Error", description: e.message })}
               />
             )}
-            {step === 4 && <ResultsStep key="results" data={data} onRetry={handleRetry} onHome={() => navigate("/")} />}
+            {step === 4 && (
+              <ResultsStep data={data} onRetry={() => navigate("/verify/new")} onHome={() => navigate("/")} />
+            )}
           </AnimatePresence>
         </div>
       </div>
