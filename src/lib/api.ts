@@ -1,11 +1,19 @@
 import { getApiBaseUrl } from './storage';
 
-export type VerifyAction = 'start' | 'upload_document' | 'verify_face';
+export type VerifyAction = 'start' | 'log_consent' | 'upload_document' | 'verify_face';
 
 export interface StartSessionRequest {
   action: 'start';
-  guestName: string;
-  roomNumber: string;
+  guestName?: string;
+  roomNumber?: string;
+}
+
+export interface LogConsentRequest {
+  action: 'log_consent';
+  session_token: string;
+  consent_given: boolean;
+  consent_time: string;
+  consent_locale: string;
 }
 
 export interface UploadDocumentRequest {
@@ -19,6 +27,8 @@ export interface VerifyFaceRequest {
   session_token: string;
   image_data: string;
 }
+
+export type VerifyRequest = StartSessionRequest | LogConsentRequest | UploadDocumentRequest | VerifyFaceRequest;
 
 export interface VerifyResponse {
   success: boolean;
@@ -56,6 +66,11 @@ class ApiService {
     const baseUrl = getApiBaseUrl();
     const url = `${baseUrl}${endpoint}`;
     
+    console.log(`[ApiService] ${options?.method || 'GET'} ${url}`);
+    if (options?.body) {
+      console.log('[ApiService] Request body:', options.body);
+    }
+    
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -64,15 +79,29 @@ class ApiService {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-      throw new Error(error.error || error.message || 'API request failed');
+    console.log(`[ApiService] Response status: ${response.status} ${response.statusText}`);
+
+    const responseText = await response.text();
+    console.log('[ApiService] Response body (raw):', responseText);
+
+    let data: T;
+    try {
+      data = JSON.parse(responseText);
+      console.log('[ApiService] Response body (parsed):', data);
+    } catch (parseError) {
+      console.error('[ApiService] Failed to parse JSON response:', parseError);
+      throw new Error(`Failed to parse response: ${responseText}`);
     }
 
-    return response.json();
+    if (!response.ok) {
+      const errorData = data as { error?: string; message?: string };
+      throw new Error(errorData.error || errorData.message || `API request failed with status ${response.status}`);
+    }
+
+    return data;
   }
 
-  async verify(data: StartSessionRequest | UploadDocumentRequest | VerifyFaceRequest): Promise<VerifyResponse> {
+  async verify(data: VerifyRequest): Promise<VerifyResponse> {
     return this.fetchApi<VerifyResponse>('/api/verify', {
       method: 'POST',
       body: JSON.stringify(data),
