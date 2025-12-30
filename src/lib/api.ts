@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from './storage';
 
-export type VerifyAction = 'start' | 'log_consent' | 'upload_document' | 'verify_face';
+export type VerifyAction = 'start' | 'log_consent' | 'upload_document' | 'verify_face' | 'get_session';
 
 export interface StartSessionRequest {
   action: 'start';
@@ -32,7 +32,27 @@ export interface VerifyFaceRequest {
   selfie_data?: string;
 }
 
-export type VerifyRequest = StartSessionRequest | LogConsentRequest | UploadDocumentRequest | VerifyFaceRequest;
+export interface GetSessionRequest {
+  action: 'get_session';
+  session_token: string;
+}
+
+export type VerifyRequest = StartSessionRequest | LogConsentRequest | UploadDocumentRequest | VerifyFaceRequest | GetSessionRequest;
+
+// Session state returned from backend
+export interface SessionState {
+  session_token: string;
+  consent_given?: boolean;
+  guest_name?: string;
+  room_number?: string;
+  document_uploaded?: boolean;
+  selfie_uploaded?: boolean;
+  verification_score?: number;
+  liveness_score?: number;
+  face_match_score?: number;
+  is_verified?: boolean;
+  current_step?: 'welcome' | 'document' | 'selfie' | 'results' | number;
+}
 
 // Response types - using a flexible structure to handle various backend response formats
 export interface VerifyResponse {
@@ -46,6 +66,7 @@ export interface VerifyResponse {
   face_match_score?: number;
   verification_score?: number;
   extracted_text?: string;
+  session?: SessionState;
   data?: {
     liveness_score?: number;
     face_match_score?: number;
@@ -121,6 +142,19 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async getSession(sessionToken: string): Promise<SessionState | null> {
+    try {
+      const response = await this.verify({
+        action: 'get_session',
+        session_token: sessionToken,
+      });
+      return response.session || null;
+    } catch (error) {
+      console.log('[ApiService] Session not found or expired');
+      return null;
+    }
   }
 
   async getAdminStats(): Promise<AdminStats> {
