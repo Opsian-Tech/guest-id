@@ -6,6 +6,8 @@ import { VerificationData } from "@/pages/Verify";
 import CameraCapture from "@/components/CameraCapture";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+import { api } from "@/lib/api";
+import { optimizeImageWithGuardrails } from "@/lib/image";
 
 type Props = {
   data: VerificationData;
@@ -21,98 +23,77 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
   const { t } = useTranslation();
 
   const handleCapture = (imageData: string) => {
-    console.log('✅ DocumentStep.handleCapture called!');
-    console.log('📄 Document captured, full data length:', imageData?.length);
-    console.log('📄 Document data format:', imageData?.substring(0, 50));
-    
-    // Verify it's JPEG format
-    if (!imageData?.startsWith('data:image/jpeg;base64,')) {
-      console.warn('⚠️ Image is not JPEG format:', imageData?.substring(0, 30));
-    }
-    
+    console.log("[Document] Image captured");
     setCapturedImage(imageData);
   };
 
   const handleRetake = () => {
-    console.log('🔄 Retaking photo');
+    console.log("[Document] Retaking photo");
     setCapturedImage(null);
   };
 
   const handleConfirmUpload = async () => {
     if (!capturedImage) return;
-    
-    console.log('📄 Confirming upload, raw image length:', capturedImage?.length);
-    console.log('📄 Raw image format:', capturedImage?.substring(0, 50));
-    
+
     if (!data.sessionToken) {
-      onError(new Error('No session token found'));
+      onError(new Error("No session token found"));
       return;
     }
 
-    // Strip the data URI prefix to get clean base64
-    let cleanBase64 = capturedImage;
-    if (capturedImage.startsWith('data:image/jpeg;base64,')) {
-      cleanBase64 = capturedImage.replace('data:image/jpeg;base64,', '');
-      console.log('✂️ Stripped data URI prefix, clean base64 length:', cleanBase64.length);
-      console.log('✂️ Clean base64 preview:', cleanBase64.substring(0, 50));
-    } else {
-      console.warn('⚠️ Image does not have expected JPEG data URI prefix');
-    }
-
     setIsProcessing(true);
-    console.log('🚀 Starting upload process...');
-    console.log('🔑 Session token:', data.sessionToken);
-    
+    console.log("[Document] Starting upload process...");
+
     try {
-      const requestBody = {
-        action: 'upload_document',
+      // Optimize image before upload
+      const optimizeResult = await optimizeImageWithGuardrails(capturedImage);
+
+      if (!optimizeResult.success) {
+        const errorResult = optimizeResult as { success: false; errorMessage: string };
+        toast({
+          title: "Image too large",
+          description: errorResult.errorMessage,
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log(`[Document] Optimized size: ${Math.round(optimizeResult.sizeBytes / 1024)}KB`);
+
+      // Strip the data URI prefix to get clean base64
+      const cleanBase64 = optimizeResult.dataUrl.replace(
+        /^data:image\/\w+;base64,/,
+        ""
+      );
+
+      console.log("[Document] Sending upload request...");
+
+      const response = await api.verify({
+        action: "upload_document",
         session_token: data.sessionToken,
         image_data: cleanBase64,
-        document_type: 'passport',
+        document_type: "passport",
         guest_name: data.guestName,
-        room_number: data.roomNumber
-      };
-      
-      console.log('📤 Sending document upload request:', {
-        action: requestBody.action,
-        session_token: requestBody.session_token,
-        document_type: requestBody.document_type,
-        image_data_length: cleanBase64?.length || 0,
-        image_data_preview: cleanBase64?.substring(0, 50)
+        room_number: data.roomNumber,
       });
 
-      console.log('🌐 Making fetch request...');
-      const response = await fetch('https://roomquest-id-backend.vercel.app/api/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
-
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response ok:', response.ok);
-      
-      const responseData = await response.json();
-      console.log('📦 Response data:', responseData);
-
-      if (responseData.success) {
-        console.log('✅ Upload successful!');
-        updateData({ documentImage: capturedImage });
+      if (response.success) {
+        console.log("[Document] Upload successful");
+        updateData({ documentImage: optimizeResult.dataUrl });
         toast({ title: "Document uploaded successfully!" });
         onNext();
       } else {
-        console.log('❌ Upload failed:', responseData.error);
-        throw new Error(responseData.error || 'Failed to upload document');
+        throw new Error(response.error || "Failed to upload document");
       }
     } catch (error) {
-      console.error('💥 Upload error:', error);
+      console.error("[Document] Upload error:", error);
       toast({
         title: "Failed to upload document",
         description: (error as Error).message,
-        variant: "destructive"
+        variant: "destructive",
       });
       onError(error as Error);
     } finally {
-      console.log('🏁 Upload process finished');
       setIsProcessing(false);
     }
   };

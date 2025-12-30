@@ -6,6 +6,8 @@ import { VerificationData } from "@/pages/Verify";
 import CameraCapture from "@/components/CameraCapture";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+import { api } from "@/lib/api";
+import { optimizeImageWithGuardrails } from "@/lib/image";
 
 type Props = {
   data: VerificationData;
@@ -21,124 +23,97 @@ const SelfieStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
   const { t } = useTranslation();
 
   const handleCapture = (imageData: string) => {
-    console.log('✅ SelfieStep.handleCapture called!');
-    console.log('📸 Selfie captured, full data length:', imageData?.length);
-    console.log('📸 Selfie data format:', imageData?.substring(0, 50));
-    
-    // Verify it's JPEG format
-    if (!imageData?.startsWith('data:image/jpeg;base64,')) {
-      console.warn('⚠️ Image is not JPEG format:', imageData?.substring(0, 30));
-    }
-    
+    console.log("[Selfie] Image captured");
     setCapturedImage(imageData);
   };
 
   const handleRetake = () => {
-    console.log('🔄 Retaking selfie');
+    console.log("[Selfie] Retaking photo");
     setCapturedImage(null);
   };
 
   const handleConfirmUpload = async () => {
     if (!capturedImage) return;
-    
-    console.log('📸 Confirming upload, raw image length:', capturedImage?.length);
-    console.log('📸 Raw image format:', capturedImage?.substring(0, 50));
-    
+
     if (!data.sessionToken) {
-      onError(new Error('No session token found'));
+      onError(new Error("No session token found"));
       return;
     }
 
-    // Strip the data URI prefix to get clean base64
-    let cleanBase64 = capturedImage;
-    if (capturedImage.startsWith('data:image/jpeg;base64,')) {
-      cleanBase64 = capturedImage.replace('data:image/jpeg;base64,', '');
-      console.log('✂️ Stripped data URI prefix, clean base64 length:', cleanBase64.length);
-      console.log('✂️ Clean base64 preview:', cleanBase64.substring(0, 50));
-    } else {
-      console.warn('⚠️ Image does not have expected JPEG data URI prefix');
-    }
-
     setIsProcessing(true);
-    console.log('🚀 Starting selfie upload process...');
-    console.log('🔑 Session token:', data.sessionToken);
-    
+    console.log("[Selfie] Starting verification process...");
+
     try {
-      const requestBody = {
-        action: 'verify_face',
+      // Optimize image before upload
+      const optimizeResult = await optimizeImageWithGuardrails(capturedImage);
+
+      if (!optimizeResult.success) {
+        const errorResult = optimizeResult as { success: false; errorMessage: string };
+        toast({
+          title: "Image too large",
+          description: errorResult.errorMessage,
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log(`[Selfie] Optimized size: ${Math.round(optimizeResult.sizeBytes / 1024)}KB`);
+
+      // Strip the data URI prefix to get clean base64
+      const cleanBase64 = optimizeResult.dataUrl.replace(
+        /^data:image\/\w+;base64,/,
+        ""
+      );
+
+      console.log("[Selfie] Sending verification request...");
+
+      const response = await api.verify({
+        action: "verify_face",
         session_token: data.sessionToken,
         selfie_data: cleanBase64,
         image_data: cleanBase64,
-      };
-      
-      console.log('📤 Sending selfie verification request:', {
-        action: requestBody.action,
-        session_token: requestBody.session_token,
-        selfie_data_length: cleanBase64?.length || 0,
-        selfie_data_preview: cleanBase64?.substring(0, 50)
       });
-
-      console.log('🌐 Making fetch request...');
-      const response = await fetch('https://roomquest-id-backend.vercel.app/api/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
-
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response ok:', response.ok);
-      
-      const responseData = await response.json();
-      console.log('📦 Full Response data:', JSON.stringify(responseData, null, 2));
 
       // Check if verification was successful (handle both response formats)
-      const isSuccess = responseData.success || responseData.is_verified;
-      const verificationData = responseData.data || responseData;
-      
-      console.log('🔍 verificationData:', JSON.stringify(verificationData, null, 2));
-      console.log('🔍 verificationData.details:', JSON.stringify(verificationData.details, null, 2));
-      
+      const isSuccess = response.success || response.is_verified;
+      const responseData = response.data;
+
       // Extract scores from the correct location in the response
-      const details = verificationData.details || verificationData;
-      const livenessScore = details.liveness_score || verificationData.liveness_score;
-      const faceMatchScore = details.face_match_score || verificationData.face_match_score;
-      const verificationScore = details.verification_score || verificationData.verification_score;
-      
-      console.log('📊 Extracted scores:', {
-        livenessScore,
-        faceMatchScore,
-        verificationScore,
-        isVerified: verificationData.is_verified
-      });
+      const livenessScore = responseData?.details?.liveness_score || responseData?.liveness_score || response.liveness_score;
+      const faceMatchScore = responseData?.details?.face_match_score || responseData?.face_match_score || response.face_match_score;
+      const verificationScore = responseData?.details?.verification_score || responseData?.verification_score || response.verification_score;
+      const isVerified = responseData?.is_verified || response.is_verified;
+
+      console.log("[Selfie] Scores:", { livenessScore, faceMatchScore, verificationScore });
 
       // Always update scores, even on failure
       updateData({
-        selfieImage: capturedImage,
+        selfieImage: optimizeResult.dataUrl,
         livenessScore,
         faceMatchScore,
         verificationScore,
-        isVerified: verificationData.is_verified,
+        isVerified,
       });
 
-      if (isSuccess && verificationData.is_verified) {
-        console.log('✅ Verification successful!');
+      if (isSuccess && isVerified) {
+        console.log("[Selfie] Verification successful");
         toast({ title: "Identity verified!" });
         onNext();
       } else {
-        console.log('❌ Verification failed:', responseData.error);
+        console.log("[Selfie] Verification completed with issues");
         toast({ title: "Verification complete - check results" });
         onNext();
       }
     } catch (error) {
-      console.error('💥 Verification error:', error);
+      console.error("[Selfie] Verification error:", error);
       toast({
         title: "Failed to verify identity",
         description: (error as Error).message,
-        variant: "destructive"
+        variant: "destructive",
       });
       onError(error as Error);
     } finally {
-      console.log('🏁 Verification process finished');
       setIsProcessing(false);
     }
   };
