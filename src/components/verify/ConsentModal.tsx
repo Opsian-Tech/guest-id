@@ -22,40 +22,29 @@ const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
   const handleConsent = async () => {
     setIsLoading(true);
     try {
-      // Step 1: Create session via ApiService
-      console.log('[Consent Flow] Step 1: Starting session creation...');
-      
-      const startData = await api.verify({ action: 'start' });
+      console.log("Starting verification session");
 
+      const startData = await api.verify({ action: "start" });
       const sessionToken = startData.session_token;
-      
+
       if (!sessionToken) {
-        console.error('[Consent Flow] Step 1 FAILED - No session token in response');
-        throw new Error('No session token received from server');
+        throw new Error("No session token received from server");
       }
 
-      console.log('[Consent Flow] Step 1 SUCCESS - Session token:', sessionToken);
+      console.log("Logging consent");
 
-      // Step 2: Log consent with session token via ApiService
-      console.log('[Consent Flow] Step 2: Logging consent...');
-      
       await api.verify({
-        action: 'log_consent',
+        action: "log_consent",
         session_token: sessionToken,
         consent_given: true,
         consent_time: new Date().toISOString(),
-        consent_locale: 'en-th',
+        consent_locale: "en-th",
       });
 
-      console.log('[Consent Flow] Step 2 SUCCESS - Consent logged');
-      console.log('[Consent Flow] COMPLETE - Proceeding with session token');
-      
-      // Proceed with session token
       onConsent(sessionToken);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[Consent Flow] ERROR:', errorMessage);
-      console.error('[Consent Flow] Full error object:', error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("Consent flow failed:", errorMessage);
       toast({
         title: "Error",
         description: `Failed to process consent: ${errorMessage}`,
