@@ -133,6 +133,8 @@ const Verify = () => {
       consentGiven: true,
       consentTime: new Date().toISOString(),
     });
+    // Navigate to the token-specific URL so refresh works
+    navigate(`/verify/${sessionToken}`, { replace: true });
   };
 
   const handleConsentCancel = () => {
