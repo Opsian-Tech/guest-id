@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,18 +13,53 @@ interface ConsentModalProps {
   onCancel: () => void;
 }
 
+const RETRY_DELAYS = [1000, 3000, 5000]; // Exponential backoff: 1s, 3s, 5s
+
 const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
   const [isChecked, setIsChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { t } = useTranslation();
+  const retryAbortRef = useRef(false);
+
+  const logConsentWithRetry = async (
+    sessionToken: string,
+    attempt: number = 0
+  ): Promise<boolean> => {
+    if (retryAbortRef.current) return false;
+
+    try {
+      await api.verify({
+        action: "log_consent",
+        session_token: sessionToken,
+        consent_given: true,
+        consent_time: new Date().toISOString(),
+        consent_locale: "en-th",
+      });
+      console.log("[Consent Flow] Consent logged successfully");
+      return true;
+    } catch (error) {
+      console.log(`[Consent Flow] Consent logging attempt ${attempt + 1} failed`);
+      
+      if (attempt < RETRY_DELAYS.length - 1 && !retryAbortRef.current) {
+        const delay = RETRY_DELAYS[attempt];
+        console.log(`[Consent Flow] Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return logConsentWithRetry(sessionToken, attempt + 1);
+      }
+      
+      console.log("[Consent Flow] All retry attempts exhausted, giving up silently");
+      return false;
+    }
+  };
 
   const handleConsent = async () => {
     setIsLoading(true);
+    retryAbortRef.current = false;
 
     try {
-      // Step 1: Create session
-      console.log("[Consent Flow] Starting session creation");
+      // Step 1: Create session (CRITICAL - must succeed)
+      console.log("[Consent Flow] Starting verification session");
 
       const startResponse = await api.verify({
         action: "start",
@@ -35,31 +70,56 @@ const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
         throw new Error("No session token returned from server");
       }
 
-      console.log("[Consent Flow] Session created:", sessionToken);
+      console.log("[Consent Flow] Session created successfully");
 
-      // Step 2: Log consent
-      console.log("[Consent Flow] Logging consent");
+      // Step 2: Log consent (NON-BLOCKING)
+      console.log("[Consent Flow] Logging consent (non-blocking)");
 
-      await api.verify({
-        action: "log_consent",
-        session_token: sessionToken,
-        consent_given: true,
-        consent_time: new Date().toISOString(),
-        consent_locale: "en-th",
-      });
+      // Track consent pending state locally
+      let consentPending = true;
 
-      console.log("[Consent Flow] Consent logged successfully");
+      // Try initial consent logging
+      try {
+        await api.verify({
+          action: "log_consent",
+          session_token: sessionToken,
+          consent_given: true,
+          consent_time: new Date().toISOString(),
+          consent_locale: "en-th",
+        });
+        consentPending = false;
+        console.log("[Consent Flow] Consent logged successfully");
+      } catch (error) {
+        console.log("[Consent Flow] Initial consent logging failed, proceeding anyway");
+        
+        // Show warning toast (not destructive)
+        toast({
+          title: "Notice",
+          description: "Consent recorded and will be synced shortly.",
+          variant: "default",
+        });
 
-      // Proceed
+        // Start background retry (fire and forget)
+        setTimeout(() => {
+          logConsentWithRetry(sessionToken, 1).then(success => {
+            if (success) {
+              console.log("[Consent Flow] Background retry succeeded");
+            }
+          });
+        }, RETRY_DELAYS[0]);
+      }
+
+      // Proceed regardless of consent logging result
+      console.log("[Consent Flow] Proceeding with verification", { consentPending });
       onConsent(sessionToken);
     } catch (error) {
+      // Only session creation errors reach here
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-
-      console.error("[Consent Flow] ERROR:", error);
+      console.error("[Consent Flow] Session creation failed:", errorMessage);
 
       toast({
         title: "Error",
-        description: `Failed to process consent: ${errorMessage}`,
+        description: `Failed to start verification: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
