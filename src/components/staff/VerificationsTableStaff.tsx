@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, Calendar, Download, FileText } from "lucide-rea
 import { exportToCSV, exportToPDF } from "@/lib/exportUtils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Session } from "@/lib/api";
+import { SessionRow } from "@/lib/api";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
 type FilterStatus = "all" | "verified" | "failed" | "pending";
 interface VerificationsTableStaffProps {
-  sessions: Session[];
+  sessions: SessionRow[];
 }
 const VerificationsTableStaff = ({
   sessions
@@ -34,7 +34,7 @@ const VerificationsTableStaff = ({
     if (diffHours < 24) return t('staff.table.hoursAgo', { count: diffHours });
     return t('staff.table.daysAgo', { count: diffDays });
   };
-  const getStatusBadge = (session: Session) => {
+  const getStatusBadge = (session: SessionRow) => {
     if (session.verification_score >= 0.7) {
       return <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
           {t('staff.table.verified')}
@@ -48,7 +48,7 @@ const VerificationsTableStaff = ({
         {t('staff.table.pending')}
       </Badge>;
   };
-  const getStatus = (session: Session): FilterStatus => {
+  const getStatus = (session: SessionRow): FilterStatus => {
     if (session.verification_score >= 0.7) return "verified";
     if (session.verification_score > 0) return "failed";
     return "pending";

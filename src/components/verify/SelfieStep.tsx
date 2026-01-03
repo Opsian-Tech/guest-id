@@ -79,11 +79,11 @@ const SelfieStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
       const isSuccess = response.success || response.is_verified;
       const responseData = response.data;
 
-      // Extract scores from the correct location in the response
-      const livenessScore = responseData?.details?.liveness_score || responseData?.liveness_score || response.liveness_score;
-      const faceMatchScore = responseData?.details?.face_match_score || responseData?.face_match_score || response.face_match_score;
-      const verificationScore = responseData?.details?.verification_score || responseData?.verification_score || response.verification_score;
-      const isVerified = responseData?.is_verified || response.is_verified;
+      // Extract scores defensively from flat fields or nested data
+      const livenessScore = responseData?.liveness_score ?? response.liveness_score;
+      const faceMatchScore = responseData?.face_match_score ?? response.face_match_score;
+      const verificationScore = responseData?.verification_score ?? response.verification_score;
+      const isVerified = responseData?.is_verified ?? response.is_verified;
 
       console.log("[Selfie] Scores:", { livenessScore, faceMatchScore, verificationScore });
 

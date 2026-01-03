@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { LogOut, TrendingUp, CheckCircle2, ShieldCheck, AlertCircle, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api, AdminStats, Session } from "@/lib/api";
+import { api, AdminStats, SessionRow } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import StatsCard from "@/components/admin/StatsCard";
 import VerificationsTableStaff from "@/components/staff/VerificationsTableStaff";
@@ -18,7 +18,7 @@ const SESSION_KEY = "staff_authenticated";
 const StaffDashboard = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
