@@ -2,18 +2,10 @@ import { motion } from "framer-motion";
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "react-i18next";
-
-type Session = {
-  id: string;
-  guest_name: string;
-  room_number: string;
-  is_verified: boolean | null;
-  verification_score: number | null;
-  created_at: string;
-};
+import { SessionRow } from "@/lib/api";
 
 type Props = {
-  sessions: Session[];
+  sessions: SessionRow[];
 };
 
 const VerificationsTable = ({ sessions }: Props) => {
@@ -30,7 +22,7 @@ const VerificationsTable = ({ sessions }: Props) => {
     return date.toLocaleDateString();
   };
 
-  const getStatusBadge = (session: Session) => {
+  const getStatusBadge = (session: SessionRow) => {
     if (session.is_verified === null) {
       return (
         <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/50">

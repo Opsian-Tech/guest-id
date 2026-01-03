@@ -5,7 +5,7 @@ import { ArrowLeft, TrendingUp, DollarSign, Users, Settings as SettingsIcon } fr
 import { Button } from "@/components/ui/button";
 import StatsCard from "@/components/admin/StatsCard";
 import VerificationsTable from "@/components/admin/VerificationsTable";
-import { api, Session, AdminStats } from "@/lib/api";
+import { api, SessionRow, AdminStats } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -14,7 +14,7 @@ const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [stats, setStats] = useState<AdminStats>({
     totalVerifications: 0,
     successfulVerifications: 0,

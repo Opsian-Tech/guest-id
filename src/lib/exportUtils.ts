@@ -1,8 +1,8 @@
-import { Session } from "@/lib/api";
+import { SessionRow } from "@/lib/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export const exportToCSV = (sessions: Session[], filename: string = "verifications") => {
+export const exportToCSV = (sessions: SessionRow[], filename: string = "verifications") => {
   const headers = [
     "Guest Name",
     "Room Number",
@@ -37,7 +37,7 @@ export const exportToCSV = (sessions: Session[], filename: string = "verificatio
   document.body.removeChild(link);
 };
 
-export const exportToPDF = (sessions: Session[], filename: string = "verifications") => {
+export const exportToPDF = (sessions: SessionRow[], filename: string = "verifications") => {
   const doc = new jsPDF();
   
   // Add title

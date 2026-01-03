@@ -19,6 +19,10 @@ export type VerificationData = {
   isVerified?: boolean;
   consentGiven?: boolean;
   consentTime?: string;
+  documentImage?: string;
+  selfieImage?: string;
+  livenessScore?: number;
+  faceMatchScore?: number;
 };
 
 const stepFromBackend = (step?: string) => {
@@ -75,7 +79,11 @@ const Verify = () => {
           verificationScore: session.verification_score,
         });
 
-        setShowConsent(!session.consent_given);
+        // Determine consent visibility using BOTH local and backend state (null-safe)
+        const localConsent = data.consentGiven === true;
+        const backendConsent = session.consent_given === true;
+        setShowConsent(!(localConsent || backendConsent));
+        
         setStep(stepFromBackend(session.current_step));
       } catch {
         toast({

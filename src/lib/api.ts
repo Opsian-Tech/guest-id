@@ -80,6 +80,9 @@ export interface SessionState {
   face_match_score?: number | null;
 }
 
+// Session alias - use SessionRow for admin/staff tables
+export type Session = SessionRow;
+
 export interface VerifyResponse {
   success?: boolean;
   session_token?: string;
