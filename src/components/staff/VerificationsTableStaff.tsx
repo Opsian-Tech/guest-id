@@ -32,25 +32,30 @@ interface VerificationsTableStaffProps {
   sessions: SessionRow[];
 }
 
-// Convert SessionRow to ExtendedSessionRow with simulated TM30 data
+// Convert SessionRow to ExtendedSessionRow using real backend data
 const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
-  // TODO: Replace with actual backend data when available
+  // Extract data from backend's nested textract structure
+  const textractRaw = session.extracted_info?.textract?.raw;
+  const textract = session.extracted_info?.textract;
+  const textractOk = session.extracted_info?.textract_ok;
+  
   return {
     ...session,
     extracted_info: {
-      // Simulated extracted data - would come from backend
-      first_name: session.guest_name?.split(" ")[0] || null,
-      middle_name: null,
-      last_name: session.guest_name?.split(" ").slice(1).join(" ") || null,
-      document_number: null,
-      date_of_birth: null,
-      date_of_issue: null,
-      expiration_date: null,
-      id_type: null,
-      mrz_code: null,
-      // Simulated confidence - would come from backend
-      name_confidence: session.is_verified ? 0.95 : null,
-      passport_confidence: session.is_verified ? 0.88 : null,
+      // Map from backend's nested structure to our flat ExtractedInfo type
+      first_name: textractRaw?.first_name || null,
+      middle_name: textractRaw?.middle_name || null,
+      last_name: textractRaw?.last_name || null,
+      document_number: textractRaw?.document_number || textract?.document_number || null,
+      date_of_birth: textractRaw?.date_of_birth || textract?.dob || null,
+      date_of_issue: textractRaw?.date_of_issue || null,
+      expiration_date: textractRaw?.expiration_date || null,
+      id_type: textractRaw?.id_type || null,
+      mrz_code: textractRaw?.mrz_code || null,
+      // Confidence scores - derive from textract_ok status
+      name_confidence: textractOk ? 0.95 : null,
+      passport_confidence: textractOk ? 0.90 : null,
+      document_confidence: textractOk ? 0.92 : null,
     },
     reservation: {
       check_in_time: null,
@@ -58,13 +63,14 @@ const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
       property_name: "RoomQuest Hotel",
     },
     tm30: {
-      nationality: null,
-      sex: null,
-      arrival_date_time: null,
-      departure_date: null,
-      property: "RoomQuest Hotel",
+      // Map from backend's tm30_info if it exists
+      nationality: (session.tm30_info as any)?.nationality || textract?.nationality || null,
+      sex: (session.tm30_info as any)?.sex || null,
+      arrival_date_time: (session.tm30_info as any)?.arrival_date_time || null,
+      departure_date: (session.tm30_info as any)?.departure_date || null,
+      property: (session.tm30_info as any)?.property || "RoomQuest Hotel",
       room_number: session.room_number || null,
-      notes: null,
+      notes: (session.tm30_info as any)?.notes || null,
     },
   };
 };
@@ -105,7 +111,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
     return t("staff.table.daysAgo", { count: diffDays });
   };
 
-  const getStatusBadge = (session: SessionRow) => {
+  const getStatusBadge = (session: ExtendedSessionRow) => {
     if (session.verification_score >= 0.7) {
       return (
         <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
@@ -154,7 +160,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
     );
   };
 
-  const getStatus = (session: SessionRow): FilterStatus => {
+  const getStatus = (session: ExtendedSessionRow): FilterStatus => {
     if (session.verification_score >= 0.7) return "verified";
     if (session.verification_score > 0) return "failed";
     return "pending";

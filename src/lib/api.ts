@@ -124,6 +124,38 @@ export interface SessionRow {
   is_verified: boolean;
   verification_score: number;
   created_at: string;
+  // Extracted info from Textract
+  extracted_info?: {
+    text?: string;
+    textract?: {
+      dob?: string;
+      raw?: {
+        id_type?: string;
+        mrz_code?: string;
+        last_name?: string;
+        first_name?: string;
+        middle_name?: string;
+        date_of_birth?: string;
+        date_of_issue?: string;
+        place_of_birth?: string;
+        document_number?: string;
+        expiration_date?: string;
+      };
+      full_name?: string;
+      nationality?: string;
+      document_number?: string;
+    };
+    textract_ok?: boolean;
+    textract_error?: string;
+  } | null;
+  // TM30 fields from backend
+  tm30_info?: Record<string, unknown>;
+  tm30_status?: string;
+  // Additional fields
+  session_token?: string;
+  status?: string;
+  liveness_score?: number | null;
+  face_match_score?: number | null;
 }
 
 /* ======================================================
