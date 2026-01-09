@@ -131,10 +131,10 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
     const isEmpty = !value;
     return (
       <div className="space-y-1">
-        <Label className={`text-xs ${isEmpty ? "text-amber-400" : "text-white/60"}`}>
+        <Label className={`text-xs ${isEmpty ? "text-amber-400" : "text-gray-500"}`}>
           {label} {isEmpty && <span className="text-amber-400">⚠</span>}
         </Label>
-        <div className="bg-white/5 rounded-lg px-3 py-2 text-white text-sm border border-white/10">
+        <div className="bg-gray-50 rounded-lg px-3 py-2 text-gray-900 text-sm border border-gray-200">
           {value || "—"}
         </div>
       </div>
@@ -144,13 +144,13 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
   const renderConfidenceBadge = (level: ConfidenceLevel | null, label: string) => {
     if (!level) return null;
     const colors = {
-      high: "bg-green-500/20 text-green-300 border-green-500/30",
-      medium: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-      low: "bg-red-500/20 text-red-300 border-red-500/30",
+      high: "bg-green-500/20 text-green-700 border-green-500/30",
+      medium: "bg-yellow-500/20 text-yellow-700 border-yellow-500/30",
+      low: "bg-red-500/20 text-red-700 border-red-500/30",
     };
     return (
       <div className="flex items-center gap-2">
-        <span className="text-white/60 text-xs">{label}:</span>
+        <span className="text-gray-500 text-xs">{label}:</span>
         <Badge className={colors[level]} variant="outline">
           {level.charAt(0).toUpperCase() + level.slice(1)}
         </Badge>
@@ -169,7 +169,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
     
     return (
       <div className="space-y-1">
-        <Label className={`text-xs ${isMissing ? "text-red-400" : "text-white/60"}`}>
+        <Label className={`text-xs ${isMissing ? "text-red-400" : "text-gray-500"}`}>
           {label} <span className="text-red-400">*</span>
         </Label>
         <Input
@@ -177,7 +177,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
           value={value as string}
           onChange={(e) => setFormData(prev => ({ ...prev, [field]: e.target.value || null }))}
           placeholder={placeholder}
-          className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 ${
+          className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
             isMissing ? "border-red-500/50 ring-1 ring-red-500/30" : ""
           }`}
         />
@@ -194,11 +194,11 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
       transition={{ duration: 0.3 }}
       className="overflow-hidden"
     >
-      <div className="p-6 bg-white/5 border-t border-white/10">
+      <div className="p-6 bg-white border-t border-gray-200 shadow-lg rounded-b-lg">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <h3 className="text-lg font-medium text-white">TM30 Details</h3>
+            <h3 className="text-lg font-medium text-gray-900">TM30 Details</h3>
             <Badge 
               className={ready 
                 ? "bg-green-500/20 text-green-300 border-green-500/30" 
@@ -219,18 +219,18 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="glass border-white/20 text-white hover:bg-white/20"
+                className="border-gray-300 text-gray-700 hover:bg-gray-100"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export TM30
                 <ChevronDown className="w-4 h-4 ml-2" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-gray-900 border-white/20">
-              <DropdownMenuItem onClick={() => handleExport("csv")} className="text-white hover:bg-white/10 cursor-pointer">
+            <DropdownMenuContent className="bg-white border-gray-200">
+              <DropdownMenuItem onClick={() => handleExport("csv")} className="text-gray-700 hover:bg-gray-100 cursor-pointer">
                 <FileSpreadsheet className="w-4 h-4 mr-2" /> CSV
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport("json")} className="text-white hover:bg-white/10 cursor-pointer">
+              <DropdownMenuItem onClick={() => handleExport("json")} className="text-gray-700 hover:bg-gray-100 cursor-pointer">
                 <FileJson className="w-4 h-4 mr-2" /> JSON
               </DropdownMenuItem>
               <TooltipProvider>
@@ -238,7 +238,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                   <TooltipTrigger asChild>
                     <DropdownMenuItem 
                       onClick={() => handleExport("pdf")} 
-                      className="text-white/40 cursor-not-allowed"
+                      className="text-gray-400 cursor-not-allowed"
                       disabled
                     >
                       <FileText className="w-4 h-4 mr-2" /> PDF
@@ -266,16 +266,16 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
         {/* Confidence warning */}
         {hasLowConfidence && (
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <p className="text-red-300 text-sm mb-2">
+            <p className="text-red-600 text-sm mb-2">
               <AlertTriangle className="w-4 h-4 inline mr-2" />
               Low confidence detected. Please confirm extracted values before marking TM30 Ready.
             </p>
-            <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
+            <label className="flex items-center gap-2 text-gray-700 text-sm cursor-pointer">
               <input 
                 type="checkbox" 
                 checked={confirmExtracted}
                 onChange={(e) => setConfirmExtracted(e.target.checked)}
-                className="rounded border-white/20"
+                className="rounded border-gray-300"
               />
               Confirm extracted fields are correct
             </label>
@@ -286,14 +286,14 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* SECTION A: Extracted (Read-Only) */}
           <div className="space-y-4">
-            <h4 className="text-white/80 font-medium text-sm uppercase tracking-wide border-b border-white/10 pb-2">
+            <h4 className="text-gray-700 font-medium text-sm uppercase tracking-wide border-b border-gray-200 pb-2">
               Extracted (Read-Only)
             </h4>
             
             {/* Confidence panel */}
             {hasAnyConfidence && (
-              <div className="bg-white/5 rounded-lg p-3 space-y-2 border border-white/10">
-                <p className="text-white/60 text-xs uppercase tracking-wide mb-2">Confidence</p>
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2 border border-gray-200">
+                <p className="text-gray-500 text-xs uppercase tracking-wide mb-2">Confidence</p>
                 <div className="flex flex-wrap gap-3">
                   {renderConfidenceBadge(nameConfidence, "Name")}
                   {renderConfidenceBadge(passportConfidence, "Passport")}
@@ -315,12 +315,12 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
             {/* MRZ Code */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-white/60">MRZ Code</Label>
+                <Label className="text-xs text-gray-500">MRZ Code</Label>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setShowMrz(!showMrz)}
-                  className="text-white/60 hover:text-white h-6 px-2"
+                  className="text-gray-500 hover:text-gray-700 h-6 px-2"
                 >
                   {showMrz ? <EyeOff className="w-3 h-3 mr-1" /> : <Eye className="w-3 h-3 mr-1" />}
                   {showMrz ? "Hide" : "Show"}
@@ -328,21 +328,21 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               </div>
               {showMrz && extracted.mrz_code && (
                 <div className="relative">
-                  <pre className="bg-black/30 rounded-lg p-3 text-green-400 text-xs font-mono overflow-x-auto border border-white/10">
+                  <pre className="bg-gray-900 rounded-lg p-3 text-green-400 text-xs font-mono overflow-x-auto border border-gray-700">
                     {extracted.mrz_code}
                   </pre>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleCopyMrz}
-                    className="absolute top-2 right-2 h-6 px-2 text-white/60 hover:text-white"
+                    className="absolute top-2 right-2 h-6 px-2 text-gray-400 hover:text-white"
                   >
                     {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                   </Button>
                 </div>
               )}
               {showMrz && !extracted.mrz_code && (
-                <div className="bg-white/5 rounded-lg px-3 py-2 text-white/40 text-sm border border-white/10">
+                <div className="bg-gray-50 rounded-lg px-3 py-2 text-gray-400 text-sm border border-gray-200">
                   No MRZ data available
                 </div>
               )}
@@ -351,14 +351,14 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
           
           {/* SECTION B: TM30 Required (Editable) */}
           <div className="space-y-4">
-            <h4 className="text-white/80 font-medium text-sm uppercase tracking-wide border-b border-white/10 pb-2">
+            <h4 className="text-gray-700 font-medium text-sm uppercase tracking-wide border-b border-gray-200 pb-2">
               TM30 Required (Editable)
             </h4>
             
             <div className="space-y-4">
               {/* Nationality */}
               <div className="space-y-1">
-                <Label className={`text-xs ${missingFields.includes("nationality") ? "text-red-400" : "text-white/60"}`}>
+                <Label className={`text-xs ${missingFields.includes("nationality") ? "text-red-400" : "text-gray-500"}`}>
                   Nationality <span className="text-red-400">*</span>
                 </Label>
                 {showOtherNationality ? (
@@ -367,7 +367,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                       value={formData.nationality || ""}
                       onChange={(e) => setFormData(prev => ({ ...prev, nationality: e.target.value || null }))}
                       placeholder="Enter nationality"
-                      className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 ${
+                      className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
                         missingFields.includes("nationality") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
                       }`}
                     />
@@ -375,25 +375,25 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                       variant="ghost" 
                       size="sm"
                       onClick={() => setShowOtherNationality(false)}
-                      className="text-white/60 hover:text-white"
+                      className="text-gray-500 hover:text-gray-700"
                     >
                       Back
                     </Button>
                   </div>
                 ) : (
                   <Select value={formData.nationality || ""} onValueChange={handleNationalityChange}>
-                    <SelectTrigger className={`bg-white/10 border-white/20 text-white ${
+                    <SelectTrigger className={`bg-gray-50 border-gray-300 text-gray-900 ${
                       missingFields.includes("nationality") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
                     }`}>
                       <SelectValue placeholder="Select nationality" />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-white/20 max-h-60">
+                    <SelectContent className="bg-white border-gray-200 max-h-60">
                       {COMMON_NATIONALITIES.map((nat) => (
-                        <SelectItem key={nat} value={nat} className="text-white hover:bg-white/10">
+                        <SelectItem key={nat} value={nat} className="text-gray-700 hover:bg-gray-100">
                           {nat}
                         </SelectItem>
                       ))}
-                      <SelectItem value="__other__" className="text-white hover:bg-white/10">
+                      <SelectItem value="__other__" className="text-gray-700 hover:bg-gray-100">
                         Not listed / Other
                       </SelectItem>
                     </SelectContent>
@@ -404,7 +404,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               
               {/* Sex */}
               <div className="space-y-1">
-                <Label className={`text-xs ${missingFields.includes("sex") ? "text-red-400" : "text-white/60"}`}>
+                <Label className={`text-xs ${missingFields.includes("sex") ? "text-red-400" : "text-gray-500"}`}>
                   Sex <span className="text-red-400">*</span>
                 </Label>
                 <div className="flex gap-2">
@@ -416,7 +416,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                       onClick={() => setFormData(prev => ({ ...prev, sex: option }))}
                       className={formData.sex === option 
                         ? "gradient-button text-white" 
-                        : `glass border-white/20 text-white hover:bg-white/20 ${
+                        : `border-gray-300 text-gray-700 hover:bg-gray-100 ${
                             missingFields.includes("sex") ? "border-red-500/50" : ""
                           }`
                       }
@@ -433,14 +433,14 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               
               {/* Property (read-only) */}
               <div className="space-y-1">
-                <Label className={`text-xs ${missingFields.includes("property") ? "text-red-400" : "text-white/60"}`}>
+                <Label className={`text-xs ${missingFields.includes("property") ? "text-red-400" : "text-gray-500"}`}>
                   Property <span className="text-red-400">*</span>
                 </Label>
                 <Input
                   value={formData.property || ""}
                   onChange={(e) => setFormData(prev => ({ ...prev, property: e.target.value || null }))}
                   placeholder="Property name"
-                  className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 ${
+                  className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
                     missingFields.includes("property") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
                   }`}
                 />
@@ -451,14 +451,14 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               
               {/* Notes */}
               <div className="space-y-1">
-                <Label className="text-xs text-white/60">
+                <Label className="text-xs text-gray-500">
                   Notes / Exception Reason {!ready && <span className="text-amber-400">(required if TM30 incomplete)</span>}
                 </Label>
                 <Textarea
                   value={formData.notes || ""}
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value || null }))}
                   placeholder="Add notes or explain why TM30 is incomplete..."
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/40 min-h-[80px]"
+                  className="bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 min-h-[80px]"
                 />
               </div>
             </div>
@@ -466,11 +466,11 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
         </div>
         
         {/* Footer actions */}
-        <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-white/10">
+        <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
           <Button 
             variant="outline" 
             onClick={handleCancel}
-            className="glass border-white/20 text-white hover:bg-white/20"
+            className="border-gray-300 text-gray-700 hover:bg-gray-100"
           >
             Cancel
           </Button>
@@ -491,7 +491,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                     variant="outline"
                     className={canMarkReady 
                       ? "bg-green-600 hover:bg-green-700 text-white border-green-500" 
-                      : "glass border-white/20 text-white/40 cursor-not-allowed"
+                      : "border-gray-300 text-gray-400 cursor-not-allowed"
                     }
                   >
                     <CheckCircle2 className="w-4 h-4 mr-2" />
