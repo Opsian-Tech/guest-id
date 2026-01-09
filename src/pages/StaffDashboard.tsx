@@ -93,19 +93,19 @@ const StaffDashboard = () => {
           <LanguageSwitcher />
         </div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-          <Card className="glass border-white/20">
-            <CardContent className="pt-6">
+          <Card className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+            <CardContent className="pt-8 pb-8 px-8">
               <h1 className="text-3xl font-bold text-white text-center mb-2">{t('staff.loginTitle')}</h1>
-              <p className="text-white/80 text-center mb-6">{t('staff.loginSubtitle')}</p>
-              <form onSubmit={handleLogin} className="space-y-4">
+              <p className="text-white/80 text-center mb-8">{t('staff.loginSubtitle')}</p>
+              <form onSubmit={handleLogin} className="space-y-5">
                 <Input
                   type="password"
                   placeholder={t('staff.passwordPlaceholder')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="glass border-white/20 text-white placeholder:text-white/50"
+                  className="bg-white/10 backdrop-blur-sm border-white/30 text-white placeholder:text-white/60 h-12 text-base"
                 />
-                <Button type="submit" className="w-full gradient-button text-white">
+                <Button type="submit" className="w-full gradient-button text-white h-12 text-base font-medium">
                   {t('staff.accessButton')}
                 </Button>
               </form>
