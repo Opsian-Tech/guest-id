@@ -129,6 +129,7 @@ export interface SessionRow {
     text?: string;
     textract?: {
       dob?: string;
+      sex?: "M" | "F" | "X" | string;
       raw?: {
         id_type?: string;
         mrz_code?: string;
@@ -140,6 +141,7 @@ export interface SessionRow {
         place_of_birth?: string;
         document_number?: string;
         expiration_date?: string;
+        sex?: "M" | "F" | "X" | string;
       };
       full_name?: string;
       nationality?: string;

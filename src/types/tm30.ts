@@ -10,6 +10,9 @@ export interface ExtractedInfo {
   expiration_date?: string | null;
   id_type?: string | null;
   mrz_code?: string | null;
+  // Added for auto-fill from Textract
+  sex?: "M" | "F" | "X" | string | null;
+  nationality?: string | null;
   // Confidence scores (optional)
   name_confidence?: number | null;
   passport_confidence?: number | null;
@@ -45,12 +48,11 @@ export interface ExtendedSessionRow {
   tm30?: TM30Data;
 }
 
-// TM30 Required fields for "Ready" status
+// TM30 Required fields for "Ready" status (departure_date removed per requirements)
 export const TM30_REQUIRED_FIELDS: (keyof TM30Data)[] = [
   "nationality",
   "sex",
   "arrival_date_time",
-  "departure_date",
   "property",
   "room_number",
 ];
