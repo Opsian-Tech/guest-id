@@ -39,6 +39,10 @@ const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
   const textract = session.extracted_info?.textract;
   const textractOk = session.extracted_info?.textract_ok;
   
+  // Extract sex from textract (try raw first, then top-level)
+  const extractedSex = textractRaw?.sex || textract?.sex || null;
+  const extractedNationality = textract?.nationality || null;
+  
   return {
     ...session,
     extracted_info: {
@@ -52,6 +56,9 @@ const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
       expiration_date: textractRaw?.expiration_date || null,
       id_type: textractRaw?.id_type || null,
       mrz_code: textractRaw?.mrz_code || null,
+      // Add sex and nationality from Textract for auto-fill
+      sex: extractedSex,
+      nationality: extractedNationality,
       // Confidence scores - derive from textract_ok status
       name_confidence: textractOk ? 0.95 : null,
       passport_confidence: textractOk ? 0.90 : null,
@@ -63,10 +70,11 @@ const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
       property_name: "RoomQuest Hotel",
     },
     tm30: {
-      // Map from backend's tm30_info if it exists
-      nationality: (session.tm30_info as any)?.nationality || textract?.nationality || null,
-      sex: (session.tm30_info as any)?.sex || null,
-      arrival_date_time: (session.tm30_info as any)?.arrival_date_time || null,
+      // Map from backend's tm30_info if it exists, fallback to extracted values
+      nationality: (session.tm30_info as any)?.nationality || extractedNationality || null,
+      sex: (session.tm30_info as any)?.sex || extractedSex as "M" | "F" | "X" | null || null,
+      // Use tm30_info first, then fallback to created_at for arrival
+      arrival_date_time: (session.tm30_info as any)?.arrival_date_time || session.created_at || null,
       departure_date: (session.tm30_info as any)?.departure_date || null,
       property: (session.tm30_info as any)?.property || "RoomQuest Hotel",
       room_number: session.room_number || null,
