@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Copy,
@@ -51,7 +51,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
   const [confirmExtracted, setConfirmExtracted] = useState(false);
   const [showOtherNationality, setShowOtherNationality] = useState(false);
 
-  // TM30 form state
   const [formData, setFormData] = useState<TM30Data>({
     nationality: session.tm30?.nationality || null,
     sex: session.tm30?.sex || null,
@@ -67,7 +66,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
   const extracted = session.extracted_info || {};
   const { ready, missingFields } = getTM30ReadyStatus(formData);
 
-  // Confidence checks
   const nameConfidence = getConfidenceLevel(extracted.name_confidence);
   const passportConfidence = getConfidenceLevel(extracted.passport_confidence);
   const hasLowConfidence = nameConfidence === "low" || passportConfidence === "low";
@@ -76,8 +74,8 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
   const canMarkReady = ready && (!hasLowConfidence || confirmExtracted);
 
   const handleCopyMrz = async () => {
-    if (extracted.mrz_code) {
-      await navigator.clipboard.writeText(extracted.mrz_code);
+    if ((extracted as any).mrz_code) {
+      await navigator.clipboard.writeText((extracted as any).mrz_code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -85,15 +83,14 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
 
   const handleSave = async () => {
     setSaving(true);
-    // TODO: Replace with actual API call
     await new Promise((resolve) => setTimeout(resolve, 500));
-    onSave(session.id, formData);
+    onSave((session as any).id, formData);
     setSaving(false);
     toast({ title: "Saved", description: "TM30 data has been saved." });
   };
 
   const handleMarkReady = () => {
-    onMarkReady(session.id);
+    onMarkReady((session as any).id);
     toast({ title: "TM30 Ready", description: "Record marked as TM30 Ready." });
   };
 
@@ -163,7 +160,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
     placeholder?: string,
   ) => {
     const isMissing = missingFields.includes(field);
-    const value = formData[field] || "";
+    const value = (formData as any)[field] || "";
 
     return (
       <div className="space-y-1">
@@ -193,7 +190,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
       className="overflow-hidden"
     >
       <div className="p-6 bg-white border-t border-gray-200 shadow-lg rounded-b-lg">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div className="flex items-center gap-3">
             <h3 className="text-lg font-medium text-gray-900">TM30 Details</h3>
@@ -214,7 +210,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
             </Badge>
           </div>
 
-          {/* Export dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-100">
@@ -256,7 +251,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
           </DropdownMenu>
         </div>
 
-        {/* Missing fields summary */}
         {!ready && (
           <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
             <p className="text-amber-300 text-sm">
@@ -266,7 +260,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
           </div>
         )}
 
-        {/* Confidence warning */}
         {hasLowConfidence && (
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
             <p className="text-red-600 text-sm mb-2">
@@ -285,15 +278,12 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
           </div>
         )}
 
-        {/* Two-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* SECTION A: Extracted (Read-Only) */}
           <div className="space-y-4">
             <h4 className="text-gray-700 font-medium text-sm uppercase tracking-wide border-b border-gray-200 pb-2">
               Extracted (Read-Only)
             </h4>
 
-            {/* Confidence panel */}
             {hasAnyConfidence && (
               <div className="bg-gray-50 rounded-lg p-3 space-y-2 border border-gray-200">
                 <p className="text-gray-500 text-xs uppercase tracking-wide mb-2">Confidence</p>
@@ -305,17 +295,16 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              {renderExtractedField("First Name", extracted.first_name)}
-              {renderExtractedField("Middle Name", extracted.middle_name)}
-              {renderExtractedField("Last Name", extracted.last_name)}
-              {renderExtractedField("Document Number", extracted.document_number)}
-              {renderExtractedField("Date of Birth", extracted.date_of_birth)}
-              {renderExtractedField("Date of Issue", extracted.date_of_issue)}
-              {renderExtractedField("Expiration Date", extracted.expiration_date)}
-              {renderExtractedField("ID Type", extracted.id_type)}
+              {renderExtractedField("First Name", (extracted as any).first_name)}
+              {renderExtractedField("Middle Name", (extracted as any).middle_name)}
+              {renderExtractedField("Last Name", (extracted as any).last_name)}
+              {renderExtractedField("Document Number", (extracted as any).document_number)}
+              {renderExtractedField("Date of Birth", (extracted as any).date_of_birth)}
+              {renderExtractedField("Date of Issue", (extracted as any).date_of_issue)}
+              {renderExtractedField("Expiration Date", (extracted as any).expiration_date)}
+              {renderExtractedField("ID Type", (extracted as any).id_type)}
             </div>
 
-            {/* MRZ Code */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-gray-500">MRZ Code</Label>
@@ -329,10 +318,11 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                   {showMrz ? "Hide" : "Show"}
                 </Button>
               </div>
-              {showMrz && extracted.mrz_code && (
+
+              {showMrz && (extracted as any).mrz_code && (
                 <div className="relative">
                   <pre className="bg-gray-900 rounded-lg p-3 text-green-400 text-xs font-mono overflow-x-auto border border-gray-700">
-                    {extracted.mrz_code}
+                    {(extracted as any).mrz_code}
                   </pre>
                   <Button
                     variant="ghost"
@@ -344,7 +334,8 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                   </Button>
                 </div>
               )}
-              {showMrz && !extracted.mrz_code && (
+
+              {showMrz && !(extracted as any).mrz_code && (
                 <div className="bg-gray-50 rounded-lg px-3 py-2 text-gray-400 text-sm border border-gray-200">
                   No MRZ data available
                 </div>
@@ -352,20 +343,19 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
             </div>
           </div>
 
-          {/* SECTION B: TM30 Required (Editable) */}
           <div className="space-y-4">
             <h4 className="text-gray-700 font-medium text-sm uppercase tracking-wide border-b border-gray-200 pb-2">
               TM30 Required (Editable)
             </h4>
 
             <div className="space-y-4">
-              {/* Nationality */}
               <div className="space-y-1">
                 <Label
                   className={`text-xs ${missingFields.includes("nationality") ? "text-red-400" : "text-gray-500"}`}
                 >
                   Nationality <span className="text-red-400">*</span>
                 </Label>
+
                 {showOtherNationality ? (
                   <div className="flex gap-2">
                     <Input
@@ -406,10 +396,10 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                     </SelectContent>
                   </Select>
                 )}
+
                 {missingFields.includes("nationality") && <p className="text-red-400 text-xs">Required</p>}
               </div>
 
-              {/* Sex */}
               <div className="space-y-1">
                 <Label className={`text-xs ${missingFields.includes("sex") ? "text-red-400" : "text-gray-500"}`}>
                   Sex <span className="text-red-400">*</span>
@@ -437,9 +427,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               </div>
 
               {renderRequiredInput("Arrival Date/Time", "arrival_date_time", "datetime-local")}
-              {renderRequiredInput("Departure Date", "departure_date", "date")}
 
-              {/* Property (read-only) */}
               <div className="space-y-1">
                 <Label className={`text-xs ${missingFields.includes("property") ? "text-red-400" : "text-gray-500"}`}>
                   Property <span className="text-red-400">*</span>
@@ -455,9 +443,8 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                 {missingFields.includes("property") && <p className="text-red-400 text-xs">Required</p>}
               </div>
 
-              {renderRequiredInput("Reservation Number", "room_number", "text", "e.g. 101")}
+              {renderRequiredInput("Reservation Number", "room_number", "text", "e.g. 92392349")}
 
-              {/* Notes */}
               <div className="space-y-1">
                 <Label className="text-xs text-gray-500">
                   Notes / Exception Reason{" "}
@@ -474,7 +461,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
           </div>
         </div>
 
-        {/* Footer actions */}
         <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
           <Button variant="outline" onClick={handleCancel} className="border-gray-300 text-gray-700 hover:bg-gray-100">
             Cancel
