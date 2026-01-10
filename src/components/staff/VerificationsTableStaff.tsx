@@ -1,17 +1,64 @@
-// Convert SessionRow to ExtendedSessionRow using real backend data
+import { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ChevronDown,
+  ChevronUp,
+  Calendar,
+  Download,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
+  FileJson,
+  FileSpreadsheet,
+} from "lucide-react";
+import { exportToCSV, exportToPDF } from "@/lib/exportUtils";
+import { exportTM30ToCSV, exportTM30ToJSON } from "@/lib/tm30ExportUtils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { SessionRow } from "@/lib/api";
+import { ExtendedSessionRow, TM30Data, getTM30ReadyStatus } from "@/types/tm30";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
+import { useToast } from "@/hooks/use-toast";
+import TM30DetailsDrawer from "./TM30DetailsDrawer";
+
+type FilterStatus = "all" | "verified" | "failed" | "pending";
+
+interface VerificationsTableStaffProps {
+  sessions: SessionRow[];
+}
+
+const toDatetimeLocalFromISO = (iso?: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  // datetime-local expects "YYYY-MM-DDTHH:MM"
+  return d.toISOString().slice(0, 16);
+};
+
+// Convert SessionRow to ExtendedSessionRow using real backend data (supports BOTH flat + nested shapes)
 const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
-  // Backend nested structure (new)
-  const textract = (session.extracted_info as any)?.textract || null;
+  const extractedAny = (session as any)?.extracted_info || {};
+  const textract = extractedAny?.textract || null;
   const textractRaw = textract?.raw || null;
-  const mrzParsed = textract?.mrz_parsed || null;
+  const mrzParsed = textract?.mrz_parsed || extractedAny?.mrz_parsed || null;
 
-  // Flat structure (old / previously working)
-  const flat = (session.extracted_info as any) || {};
+  // Flat structure (older / previously working)
+  const flat = extractedAny || {};
 
-  const textractOk = (session.extracted_info as any)?.textract_ok ?? null;
+  const textractOk = extractedAny?.textract_ok ?? null;
 
-  // Build "extracted_info" with fallbacks:
-  // prefer FLAT if it exists, otherwise use NESTED raw
   const extracted_info = {
     first_name: flat.first_name || textractRaw?.first_name || null,
     middle_name: flat.middle_name || textractRaw?.middle_name || null,
@@ -27,28 +74,25 @@ const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
 
     mrz_code: flat.mrz_code || textractRaw?.mrz_code || null,
 
-    // Keep original textract packet if present (drawer can read nested too)
+    // Preserve backend packet for anything else you need in the drawer
     textract: textract || null,
-    textract_ok: flat.textract_ok ?? (session.extracted_info as any)?.textract_ok ?? null,
-    textract_error: flat.textract_error ?? (session.extracted_info as any)?.textract_error ?? null,
+    textract_ok: flat.textract_ok ?? extractedAny?.textract_ok ?? null,
+    textract_error: flat.textract_error ?? extractedAny?.textract_error ?? null,
+    mrz_parsed: mrzParsed || null,
 
-    // Optional: stash mrz_parsed at the top too (helps drawer and defaults)
-    mrz_parsed: flat.mrz_parsed || mrzParsed || null,
-
-    // Confidence scores (you can refine later)
+    // Confidence (placeholder)
     name_confidence: textractOk ? 0.95 : null,
     passport_confidence: textractOk ? 0.9 : null,
     document_confidence: textractOk ? 0.92 : null,
   };
 
-  // TM30 defaults
-  const tm30Info = (session as any)?.tm30_info || {};
-  const arrivalFromCreatedAt = session.created_at
-    ? new Date(session.created_at).toISOString().slice(0, 16) // "YYYY-MM-DDTHH:MM" for datetime-local
-    : null;
+  const tm30Info = ((session as any)?.tm30_info || {}) as any;
+
+  // Default arrival from created_at (datetime-local format)
+  const arrivalFromCreatedAt = toDatetimeLocalFromISO(session.created_at);
 
   return {
-    ...session,
+    ...(session as any),
     extracted_info,
     reservation: {
       check_in_time: null,
@@ -56,21 +100,386 @@ const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
       property_name: "RoomQuest Hotel",
     },
     tm30: {
-      nationality: tm30Info.nationality || mrzParsed?.nationality || null,
+      nationality: tm30Info?.nationality || mrzParsed?.nationality || null,
+      sex: tm30Info?.sex || mrzParsed?.sex || null,
 
-      sex: tm30Info.sex || mrzParsed?.sex || null,
+      // IMPORTANT: auto-fill from created_at if not already set
+      arrival_date_time: tm30Info?.arrival_date_time || arrivalFromCreatedAt || null,
 
-      // IMPORTANT: use created_at as the default arrival date/time
-      arrival_date_time: tm30Info.arrival_date_time || arrivalFromCreatedAt || null,
+      // Keep passing through if your types expect it (you can remove from UI separately)
+      departure_date: tm30Info?.departure_date || null,
 
-      // Keep for now; you can remove from UI later
-      departure_date: tm30Info.departure_date || null,
-
-      property: tm30Info.property || "RoomQuest Hotel",
-
-      room_number: tm30Info.room_number || session.room_number || null,
-
-      notes: tm30Info.notes || null,
+      property: tm30Info?.property || "RoomQuest Hotel",
+      room_number: tm30Info?.room_number || (session as any)?.room_number || null,
+      notes: tm30Info?.notes || null,
     },
-  };
+  } as ExtendedSessionRow;
 };
+
+const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+
+  // Local TM30 state (TODO: Replace with backend persistence)
+  const [tm30DataMap, setTm30DataMap] = useState<Record<string, TM30Data>>({});
+  const [tm30ReadyMap, setTm30ReadyMap] = useState<Record<string, boolean>>({});
+
+  // Convert sessions to extended sessions with local TM30 overrides
+  const extendedSessions = useMemo(() => {
+    return sessions.map((session) => {
+      const extended = toExtendedSession(session);
+      if (tm30DataMap[(session as any).id]) {
+        extended.tm30 = { ...extended.tm30, ...tm30DataMap[(session as any).id] };
+      }
+      return extended;
+    });
+  }, [sessions, tm30DataMap]);
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffMins < 1) return t("staff.table.justNow");
+    if (diffMins < 60) return t("staff.table.minutesAgo", { count: diffMins });
+    if (diffHours < 24) return t("staff.table.hoursAgo", { count: diffHours });
+    return t("staff.table.daysAgo", { count: diffDays });
+  };
+
+  const getStatusBadge = (session: ExtendedSessionRow) => {
+    if ((session as any).verification_score >= 0.7) {
+      return <Badge className="bg-green-500/20 text-green-300 border-green-500/30">{t("staff.table.verified")}</Badge>;
+    } else if ((session as any).verification_score > 0) {
+      return <Badge className="bg-red-500/20 text-red-300 border-red-500/30">{t("staff.table.failed")}</Badge>;
+    }
+    return <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">{t("staff.table.pending")}</Badge>;
+  };
+
+  const getTM30StatusBadge = (session: ExtendedSessionRow) => {
+    // Check if manually marked as ready
+    if (tm30ReadyMap[(session as any).id]) {
+      return (
+        <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
+          <CheckCircle2 className="w-3 h-3 mr-1" />
+          TM30 Ready
+        </Badge>
+      );
+    }
+
+    const { ready, missingFields } = getTM30ReadyStatus((session as any).tm30);
+    if (ready) {
+      return (
+        <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
+          <CheckCircle2 className="w-3 h-3 mr-1" />
+          TM30 Ready
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-xs">
+        <AlertTriangle className="w-3 h-3 mr-1" />
+        Missing ({missingFields.length})
+      </Badge>
+    );
+  };
+
+  const getStatus = (session: ExtendedSessionRow): FilterStatus => {
+    if ((session as any).verification_score >= 0.7) return "verified";
+    if ((session as any).verification_score > 0) return "failed";
+    return "pending";
+  };
+
+  const filteredSessions = extendedSessions.filter((session) => {
+    const statusMatch = filterStatus === "all" || getStatus(session) === filterStatus;
+    if (!selectedDate) return statusMatch;
+    const sessionDate = new Date((session as any).created_at);
+    const dateMatch =
+      sessionDate.getDate() === selectedDate.getDate() &&
+      sessionDate.getMonth() === selectedDate.getMonth() &&
+      sessionDate.getFullYear() === selectedDate.getFullYear();
+    return statusMatch && dateMatch;
+  });
+
+  const readySessions = filteredSessions.filter((s) => {
+    if (tm30ReadyMap[(s as any).id]) return true;
+    const { ready } = getTM30ReadyStatus((s as any).tm30);
+    return ready;
+  });
+
+  const selectedReadySessions = filteredSessions.filter(
+    (s) =>
+      selectedRows.has((s as any).id) && (tm30ReadyMap[(s as any).id] || getTM30ReadyStatus((s as any).tm30).ready),
+  );
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const readyIds = readySessions.map((s) => (s as any).id);
+      setSelectedRows(new Set(readyIds));
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const handleSaveTM30 = (sessionId: string, tm30Data: TM30Data) => {
+    // TODO: Replace with actual API call
+    setTm30DataMap((prev) => ({ ...prev, [sessionId]: tm30Data }));
+  };
+
+  const handleMarkReady = (sessionId: string) => {
+    // TODO: Replace with actual API call
+    setTm30ReadyMap((prev) => ({ ...prev, [sessionId]: true }));
+  };
+
+  const handleBulkExport = (format: "csv" | "json") => {
+    const toExport = selectedRows.size > 0 ? selectedReadySessions : readySessions;
+
+    if (toExport.length === 0) {
+      toast({
+        title: "No Records",
+        description: "No TM30 Ready records to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if user selected non-ready rows
+    if (selectedRows.size > 0 && selectedReadySessions.length < selectedRows.size) {
+      toast({
+        title: "Partial Export",
+        description: `Only ${selectedReadySessions.length} TM30 Ready records will be exported (${selectedRows.size - selectedReadySessions.length} non-ready records skipped).`,
+      });
+    }
+
+    if (format === "csv") {
+      exportTM30ToCSV(toExport, "tm30_bulk_export");
+    } else {
+      exportTM30ToJSON(toExport, "tm30_bulk_export");
+    }
+
+    toast({
+      title: "Exported",
+      description: `${toExport.length} TM30 records exported as ${format.toUpperCase()}.`,
+    });
+  };
+
+  const hasSelectedRows = selectedRows.size > 0;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <h2 className="text-2xl text-white font-poppins font-thin">{t("staff.todayVerifications")}</h2>
+
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          <Button
+            onClick={() => exportToCSV(sessions, "roomquest_verifications")}
+            variant="outline"
+            size="sm"
+            className="glass border-white/20 text-white hover:bg-white/20"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {t("staff.table.exportCSV")}
+          </Button>
+          <Button
+            onClick={() => exportToPDF(sessions, "roomquest_verifications")}
+            variant="outline"
+            size="sm"
+            className="glass border-white/20 text-white hover:bg-white/20"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            {t("staff.table.exportPDF")}
+          </Button>
+        </div>
+      </div>
+
+      {/* Bulk TM30 Export Toolbar */}
+      <AnimatePresence>
+        {(hasSelectedRows || readySessions.length > 0) && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-4 p-3 bg-white/5 border border-white/10 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"
+          >
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={selectedRows.size === readySessions.length && readySessions.length > 0}
+                onCheckedChange={(checked) => handleSelectAll(checked === true)}
+                className="border-white/30 data-[state=checked]:bg-primary"
+              />
+              <span className="text-white/80 text-sm">
+                {hasSelectedRows
+                  ? `${selectedRows.size} selected (${selectedReadySessions.length} ready)`
+                  : `Select all ready (${readySessions.length})`}
+              </span>
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="glass border-white/20 text-white hover:bg-white/20"
+                  disabled={readySessions.length === 0}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export TM30 (Ready only)
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-gray-900 border-white/20">
+                <DropdownMenuItem
+                  onClick={() => handleBulkExport("csv")}
+                  className="text-white hover:bg-white/10 cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-4 h-4 mr-2" /> CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleBulkExport("json")}
+                  className="text-white hover:bg-white/10 cursor-pointer"
+                >
+                  <FileJson className="w-4 h-4 mr-2" /> JSON
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Filters */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto ml-auto">
+          <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as FilterStatus)}>
+            <SelectTrigger className="glass border-white/20 text-white w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-900 border-white/20">
+              <SelectItem value="all">{t("staff.table.showAll")}</SelectItem>
+              <SelectItem value="verified">{t("staff.table.verifiedOnly")}</SelectItem>
+              <SelectItem value="failed">{t("staff.table.failedOnly")}</SelectItem>
+              <SelectItem value="pending">{t("staff.table.pendingOnly")}</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="glass border-white/20 text-white hover:bg-white/20 w-full sm:w-[180px]"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                {selectedDate ? format(selectedDate, "MMM dd, yyyy") : t("staff.table.pickDate")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-gray-900 border-white/20">
+              <CalendarComponent
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-white/10 hover:bg-white/5">
+              <TableHead className="text-white/80 w-10">
+                <span className="sr-only">Select</span>
+              </TableHead>
+              <TableHead className="text-white/80">{t("staff.table.guestName")}</TableHead>
+              <TableHead className="text-white/80">{t("staff.table.roomNumber")}</TableHead>
+              <TableHead className="text-white/80">{t("staff.table.status")}</TableHead>
+              <TableHead className="text-white/80">TM30</TableHead>
+              <TableHead className="text-white/80">{t("staff.table.score")}</TableHead>
+              <TableHead className="text-white/80">{t("staff.table.time")}</TableHead>
+              <TableHead className="text-white/80">{t("staff.table.details")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredSessions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center text-white/60 py-8">
+                  {t("staff.table.noVerifications")}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredSessions.map((session) => {
+                const isReady = tm30ReadyMap[(session as any).id] || getTM30ReadyStatus((session as any).tm30).ready;
+                return (
+                  <AnimatePresence key={(session as any).id}>
+                    <TableRow className="border-white/10 hover:bg-white/5 transition-colors">
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedRows.has((session as any).id)}
+                          onCheckedChange={(checked) => handleSelectRow((session as any).id, checked === true)}
+                          disabled={!isReady}
+                          className="border-white/30 data-[state=checked]:bg-primary disabled:opacity-30"
+                        />
+                      </TableCell>
+                      <TableCell className="text-white font-medium">{(session as any).guest_name}</TableCell>
+                      <TableCell className="text-white/80">{(session as any).room_number}</TableCell>
+                      <TableCell>{getStatusBadge(session)}</TableCell>
+                      <TableCell>{getTM30StatusBadge(session)}</TableCell>
+                      <TableCell className="text-white/80">
+                        {(session as any).verification_score > 0
+                          ? `${(((session as any).verification_score as number) * 100).toFixed(0)}%`
+                          : t("staff.table.na")}
+                      </TableCell>
+                      <TableCell className="text-white/80">{formatTime((session as any).created_at)}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setExpandedRow(expandedRow === (session as any).id ? null : (session as any).id)
+                          }
+                          className="text-white/80 hover:text-white hover:bg-white/10"
+                        >
+                          {expandedRow === (session as any).id ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                    {expandedRow === (session as any).id && (
+                      <TableRow className="border-white/10">
+                        <TableCell colSpan={8} className="p-0">
+                          <TM30DetailsDrawer session={session} onSave={handleSaveTM30} onMarkReady={handleMarkReady} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </AnimatePresence>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </motion.div>
+  );
+};
+
+export default VerificationsTableStaff;
