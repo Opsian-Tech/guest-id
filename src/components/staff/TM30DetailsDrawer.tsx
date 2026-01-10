@@ -43,26 +43,6 @@ interface TM30DetailsDrawerProps {
   onMarkReady: (sessionId: string) => void;
 }
 
-/**
- * Manual routing helpers:
- * Your Supabase structure is:
- * session.extracted_info = { text, textract_ok, textract_error, textract: { raw, mrz_parsed, ... } }
- */
-const getMrzSex = (session: any) =>
-  session?.extracted_info?.textract?.mrz_parsed?.sex || session?.extracted_info?.textract?.raw?.sex || "";
-
-const getMrzNationality = (session: any) =>
-  session?.extracted_info?.textract?.mrz_parsed?.nationality ||
-  session?.extracted_info?.textract?.raw?.nationality ||
-  "";
-
-const getMrzCode = (session: any) =>
-  session?.extracted_info?.textract?.raw?.mrz_code || session?.extracted_info?.mrz_code || "";
-
-const getRaw = (session: any) => session?.extracted_info?.textract?.raw || {};
-
-const getCreatedAtAsDefaultArrival = (session: any) => session?.created_at || null;
-
 const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerProps) => {
   const { toast } = useToast();
   const [showMrz, setShowMrz] = useState(false);
@@ -71,87 +51,33 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
   const [confirmExtracted, setConfirmExtracted] = useState(false);
   const [showOtherNationality, setShowOtherNationality] = useState(false);
 
-  // Extracted info object (as stored in Supabase)
-  const extractedInfo: any = session?.extracted_info || {};
-  const raw = getRaw(session);
-
-  /**
-   * TM30 form state
-   * IMPORTANT:
-   * - Initialize EMPTY
-   * - Hydrate on session change (drawer opens on different row)
-   * - Apply manual fallback routing:
-   *   - sex from mrz_parsed.sex
-   *   - nationality from mrz_parsed.nationality
-   *   - arrival_date_time from created_at
-   */
+  // TM30 form state
   const [formData, setFormData] = useState<TM30Data>({
-    nationality: null,
-    sex: null,
-    arrival_date_time: null,
-    // departure_date removed from staff UI (still allowed in TM30Data type, but we won't require it here)
-    departure_date: null,
-    property: null,
-    room_number: null,
-    notes: null,
+    nationality: session.tm30?.nationality || null,
+    sex: session.tm30?.sex || null,
+    arrival_date_time: session.tm30?.arrival_date_time || session.reservation?.check_in_time || null,
+    departure_date: session.tm30?.departure_date || session.reservation?.check_out_date || null,
+    property: session.tm30?.property || session.reservation?.property_name || null,
+    room_number: session.tm30?.room_number || session.room_number || null,
+    notes: session.tm30?.notes || null,
   });
 
-  const [originalData, setOriginalData] = useState<TM30Data>(formData);
+  const [originalData] = useState<TM30Data>(formData);
 
-  useEffect(() => {
-    // Existing TM30 data from session (your UI uses session.tm30; backend stores tm30_info)
-    // Keep your current schema, but hydrate with fallbacks.
-    const existing: any = session?.tm30 || {};
+  const extracted = session.extracted_info || {};
+  const { ready, missingFields } = getTM30ReadyStatus(formData);
 
-    const routedSex = existing.sex || getMrzSex(session) || null;
-    const routedNationality = existing.nationality || getMrzNationality(session) || null;
-
-    // You requested: arrival_date_time from created_at (instead of reservation check-in time for now)
-    const routedArrival = existing.arrival_date_time || getCreatedAtAsDefaultArrival(session) || null;
-
-    const next: TM30Data = {
-      nationality: routedNationality,
-      sex: routedSex,
-      arrival_date_time: routedArrival,
-      // not shown in staff dashboard now
-      departure_date: existing.departure_date || null,
-      property: existing.property || session?.reservation?.property_name || null,
-      room_number: existing.room_number || session?.room_number || null,
-      notes: existing.notes || null,
-    };
-
-    setFormData(next);
-    setOriginalData(next);
-
-    // nationality "Other" UI toggle
-    const nat = next.nationality || "";
-    setShowOtherNationality(Boolean(nat) && !COMMON_NATIONALITIES.includes(nat));
-  }, [session?.id]); // session.id is used throughout your component
-
-  /**
-   * READY / Missing Fields
-   * You asked to remove Departure Date from staff-dashboard.
-   * We will:
-   * - call getTM30ReadyStatus(formData) (existing logic)
-   * - then manually remove departure_date from missing list
-   * - and treat ready as "ready if everything except departure_date is present"
-   */
-  const status = getTM30ReadyStatus(formData);
-  const missingFields = (status?.missingFields || []).filter((f: any) => f !== "departure_date");
-  const ready = Boolean(status?.ready) && !missingFields.includes("departure_date");
-
-  // Confidence checks (based on extracted_info fields if present)
-  const nameConfidence = getConfidenceLevel(extractedInfo?.name_confidence);
-  const passportConfidence = getConfidenceLevel(extractedInfo?.passport_confidence);
+  // Confidence checks
+  const nameConfidence = getConfidenceLevel(extracted.name_confidence);
+  const passportConfidence = getConfidenceLevel(extracted.passport_confidence);
   const hasLowConfidence = nameConfidence === "low" || passportConfidence === "low";
   const hasAnyConfidence = nameConfidence !== null || passportConfidence !== null;
 
   const canMarkReady = ready && (!hasLowConfidence || confirmExtracted);
 
   const handleCopyMrz = async () => {
-    const mrz = getMrzCode(session);
-    if (mrz) {
-      await navigator.clipboard.writeText(mrz);
+    if (extracted.mrz_code) {
+      await navigator.clipboard.writeText(extracted.mrz_code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -173,8 +99,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
 
   const handleCancel = () => {
     setFormData(originalData);
-    const nat = originalData.nationality || "";
-    setShowOtherNationality(Boolean(nat) && !COMMON_NATIONALITIES.includes(nat));
+    setShowOtherNationality(false);
   };
 
   const handleExport = (format: "csv" | "json" | "pdf") => {
@@ -237,8 +162,8 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
     type: "text" | "date" | "datetime-local" = "text",
     placeholder?: string,
   ) => {
-    const isMissing = missingFields.includes(field as any);
-    const value = (formData[field] as any) || "";
+    const isMissing = missingFields.includes(field);
+    const value = formData[field] || "";
 
     return (
       <div className="space-y-1">
@@ -258,8 +183,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
       </div>
     );
   };
-
-  const mrzCode = getMrzCode(session);
 
   return (
     <motion.div
@@ -338,7 +261,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
           <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
             <p className="text-amber-300 text-sm">
               <AlertTriangle className="w-4 h-4 inline mr-2" />
-              Missing: {missingFields.map((f: any) => String(f).replace(/_/g, " ")).join(", ")}
+              Missing: {missingFields.map((f) => f.replace(/_/g, " ")).join(", ")}
             </p>
           </div>
         )}
@@ -382,14 +305,14 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              {renderExtractedField("First Name", raw?.first_name || null)}
-              {renderExtractedField("Middle Name", raw?.middle_name || null)}
-              {renderExtractedField("Last Name", raw?.last_name || null)}
-              {renderExtractedField("Document Number", raw?.document_number || null)}
-              {renderExtractedField("Date of Birth", raw?.date_of_birth || null)}
-              {renderExtractedField("Date of Issue", raw?.date_of_issue || null)}
-              {renderExtractedField("Expiration Date", raw?.expiration_date || null)}
-              {renderExtractedField("ID Type", raw?.id_type || null)}
+              {renderExtractedField("First Name", extracted.first_name)}
+              {renderExtractedField("Middle Name", extracted.middle_name)}
+              {renderExtractedField("Last Name", extracted.last_name)}
+              {renderExtractedField("Document Number", extracted.document_number)}
+              {renderExtractedField("Date of Birth", extracted.date_of_birth)}
+              {renderExtractedField("Date of Issue", extracted.date_of_issue)}
+              {renderExtractedField("Expiration Date", extracted.expiration_date)}
+              {renderExtractedField("ID Type", extracted.id_type)}
             </div>
 
             {/* MRZ Code */}
@@ -406,10 +329,10 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                   {showMrz ? "Hide" : "Show"}
                 </Button>
               </div>
-              {showMrz && mrzCode && (
+              {showMrz && extracted.mrz_code && (
                 <div className="relative">
                   <pre className="bg-gray-900 rounded-lg p-3 text-green-400 text-xs font-mono overflow-x-auto border border-gray-700">
-                    {mrzCode}
+                    {extracted.mrz_code}
                   </pre>
                   <Button
                     variant="ghost"
@@ -421,7 +344,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                   </Button>
                 </div>
               )}
-              {showMrz && !mrzCode && (
+              {showMrz && !extracted.mrz_code && (
                 <div className="bg-gray-50 rounded-lg px-3 py-2 text-gray-400 text-sm border border-gray-200">
                   No MRZ data available
                 </div>
@@ -439,7 +362,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               {/* Nationality */}
               <div className="space-y-1">
                 <Label
-                  className={`text-xs ${missingFields.includes("nationality" as any) ? "text-red-400" : "text-gray-500"}`}
+                  className={`text-xs ${missingFields.includes("nationality") ? "text-red-400" : "text-gray-500"}`}
                 >
                   Nationality <span className="text-red-400">*</span>
                 </Label>
@@ -450,7 +373,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                       onChange={(e) => setFormData((prev) => ({ ...prev, nationality: e.target.value || null }))}
                       placeholder="Enter nationality"
                       className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
-                        missingFields.includes("nationality" as any) ? "border-red-500/50 ring-1 ring-red-500/30" : ""
+                        missingFields.includes("nationality") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
                       }`}
                     />
                     <Button
@@ -466,7 +389,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                   <Select value={formData.nationality || ""} onValueChange={handleNationalityChange}>
                     <SelectTrigger
                       className={`bg-gray-50 border-gray-300 text-gray-900 ${
-                        missingFields.includes("nationality" as any) ? "border-red-500/50 ring-1 ring-red-500/30" : ""
+                        missingFields.includes("nationality") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
                       }`}
                     >
                       <SelectValue placeholder="Select nationality" />
@@ -483,12 +406,12 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                     </SelectContent>
                   </Select>
                 )}
-                {missingFields.includes("nationality" as any) && <p className="text-red-400 text-xs">Required</p>}
+                {missingFields.includes("nationality") && <p className="text-red-400 text-xs">Required</p>}
               </div>
 
               {/* Sex */}
               <div className="space-y-1">
-                <Label className={`text-xs ${missingFields.includes("sex" as any) ? "text-red-400" : "text-gray-500"}`}>
+                <Label className={`text-xs ${missingFields.includes("sex") ? "text-red-400" : "text-gray-500"}`}>
                   Sex <span className="text-red-400">*</span>
                 </Label>
                 <div className="flex gap-2">
@@ -502,7 +425,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                         formData.sex === option
                           ? "gradient-button text-white"
                           : `border-gray-300 text-gray-700 hover:bg-gray-100 ${
-                              missingFields.includes("sex" as any) ? "border-red-500/50" : ""
+                              missingFields.includes("sex") ? "border-red-500/50" : ""
                             }`
                       }
                     >
@@ -510,20 +433,15 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                     </Button>
                   ))}
                 </div>
-                {missingFields.includes("sex" as any) && <p className="text-red-400 text-xs">Required</p>}
+                {missingFields.includes("sex") && <p className="text-red-400 text-xs">Required</p>}
               </div>
 
-              {/* You requested: arrival defaults to created_at */}
               {renderRequiredInput("Arrival Date/Time", "arrival_date_time", "datetime-local")}
+              {renderRequiredInput("Departure Date", "departure_date", "date")}
 
-              {/* Departure Date removed from staff dashboard */}
-              {/* {renderRequiredInput("Departure Date", "departure_date", "date")} */}
-
-              {/* Property */}
+              {/* Property (read-only) */}
               <div className="space-y-1">
-                <Label
-                  className={`text-xs ${missingFields.includes("property" as any) ? "text-red-400" : "text-gray-500"}`}
-                >
+                <Label className={`text-xs ${missingFields.includes("property") ? "text-red-400" : "text-gray-500"}`}>
                   Property <span className="text-red-400">*</span>
                 </Label>
                 <Input
@@ -531,13 +449,13 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                   onChange={(e) => setFormData((prev) => ({ ...prev, property: e.target.value || null }))}
                   placeholder="Property name"
                   className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
-                    missingFields.includes("property" as any) ? "border-red-500/50 ring-1 ring-red-500/30" : ""
+                    missingFields.includes("property") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
                   }`}
                 />
-                {missingFields.includes("property" as any) && <p className="text-red-400 text-xs">Required</p>}
+                {missingFields.includes("property") && <p className="text-red-400 text-xs">Required</p>}
               </div>
 
-              {renderRequiredInput("Room Number", "room_number", "text", "e.g. 101")}
+              {renderRequiredInput("Reservation Number", "room_number", "text", "e.g. 101")}
 
               {/* Notes */}
               <div className="space-y-1">
