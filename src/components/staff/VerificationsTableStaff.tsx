@@ -43,56 +43,61 @@ const toDatetimeLocalFromISO = (iso?: string | null) => {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  // datetime-local expects "YYYY-MM-DDTHH:MM"
   return d.toISOString().slice(0, 16);
 };
 
-// Convert SessionRow to ExtendedSessionRow using real backend data (supports BOTH flat + nested shapes)
+// Preserve backend data first. Only add fallbacks if missing.
 const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
-  const extractedAny = (session as any)?.extracted_info || {};
+  const s: any = session as any;
+
+  const extractedAny = s?.extracted_info || {};
   const textract = extractedAny?.textract || null;
   const textractRaw = textract?.raw || null;
-  const mrzParsed = textract?.mrz_parsed || extractedAny?.mrz_parsed || null;
 
-  // Flat structure (older / previously working)
-  const flat = extractedAny || {};
+  // mrz_parsed can exist either at extracted_info.mrz_parsed or extracted_info.textract.mrz_parsed
+  const mrzParsed = extractedAny?.mrz_parsed || textract?.mrz_parsed || null;
 
   const textractOk = extractedAny?.textract_ok ?? null;
 
-  const extracted_info = {
-    first_name: flat.first_name || textractRaw?.first_name || null,
-    middle_name: flat.middle_name || textractRaw?.middle_name || null,
-    last_name: flat.last_name || textractRaw?.last_name || null,
-
-    document_number: flat.document_number || textractRaw?.document_number || textract?.document_number || null,
-
-    date_of_birth: flat.date_of_birth || textractRaw?.date_of_birth || textract?.dob || null,
-
-    date_of_issue: flat.date_of_issue || textractRaw?.date_of_issue || null,
-    expiration_date: flat.expiration_date || textractRaw?.expiration_date || null,
-    id_type: flat.id_type || textractRaw?.id_type || null,
-
-    mrz_code: flat.mrz_code || textractRaw?.mrz_code || null,
-
-    // Preserve backend packet for anything else you need in the drawer
-    textract: textract || null,
-    textract_ok: flat.textract_ok ?? extractedAny?.textract_ok ?? null,
-    textract_error: flat.textract_error ?? extractedAny?.textract_error ?? null,
-    mrz_parsed: mrzParsed || null,
-
-    // Confidence (placeholder)
-    name_confidence: textractOk ? 0.95 : null,
-    passport_confidence: textractOk ? 0.9 : null,
-    document_confidence: textractOk ? 0.92 : null,
+  // Start by preserving whatever backend already provides
+  const extracted_info: any = {
+    ...extractedAny,
   };
 
-  const tm30Info = ((session as any)?.tm30_info || {}) as any;
+  // Only fill “flat” fields if they are missing
+  if (extracted_info.first_name == null) extracted_info.first_name = textractRaw?.first_name ?? null;
+  if (extracted_info.middle_name == null) extracted_info.middle_name = textractRaw?.middle_name ?? null;
+  if (extracted_info.last_name == null) extracted_info.last_name = textractRaw?.last_name ?? null;
 
-  // Default arrival from created_at (datetime-local format)
-  const arrivalFromCreatedAt = toDatetimeLocalFromISO(session.created_at);
+  if (extracted_info.document_number == null) {
+    extracted_info.document_number = textractRaw?.document_number ?? textract?.document_number ?? null;
+  }
+
+  if (extracted_info.date_of_birth == null) {
+    extracted_info.date_of_birth = textractRaw?.date_of_birth ?? textract?.dob ?? null;
+  }
+
+  if (extracted_info.date_of_issue == null) extracted_info.date_of_issue = textractRaw?.date_of_issue ?? null;
+  if (extracted_info.expiration_date == null) extracted_info.expiration_date = textractRaw?.expiration_date ?? null;
+  if (extracted_info.id_type == null) extracted_info.id_type = textractRaw?.id_type ?? null;
+  if (extracted_info.mrz_code == null) extracted_info.mrz_code = textractRaw?.mrz_code ?? null;
+
+  // Normalize important nested fields so the drawer can rely on them
+  extracted_info.textract = extracted_info.textract ?? textract ?? null;
+  extracted_info.textract_ok = extracted_info.textract_ok ?? textractOk ?? null;
+  extracted_info.mrz_parsed = extracted_info.mrz_parsed ?? mrzParsed ?? null;
+
+  // Confidence placeholders (leave existing if present)
+  if (extracted_info.name_confidence == null) extracted_info.name_confidence = textractOk ? 0.95 : null;
+  if (extracted_info.passport_confidence == null) extracted_info.passport_confidence = textractOk ? 0.9 : null;
+  if (extracted_info.document_confidence == null) extracted_info.document_confidence = textractOk ? 0.92 : null;
+
+  const tm30Info: any = s?.tm30_info || {};
+
+  const arrivalFromCreatedAt = toDatetimeLocalFromISO(s.created_at);
 
   return {
-    ...(session as any),
+    ...s,
     extracted_info,
     reservation: {
       check_in_time: null,
@@ -100,18 +105,19 @@ const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
       property_name: "RoomQuest Hotel",
     },
     tm30: {
-      nationality: tm30Info?.nationality || mrzParsed?.nationality || null,
-      sex: tm30Info?.sex || mrzParsed?.sex || null,
+      // prefer tm30_info; fallback to MRZ parsed
+      nationality: tm30Info?.nationality ?? mrzParsed?.nationality ?? null,
+      sex: tm30Info?.sex ?? mrzParsed?.sex ?? null,
 
-      // IMPORTANT: auto-fill from created_at if not already set
-      arrival_date_time: tm30Info?.arrival_date_time || arrivalFromCreatedAt || null,
+      // auto-fill arrival from created_at if not set
+      arrival_date_time: tm30Info?.arrival_date_time ?? arrivalFromCreatedAt ?? null,
 
-      // Keep passing through if your types expect it (you can remove from UI separately)
-      departure_date: tm30Info?.departure_date || null,
+      // keep value in state if present, but UI can hide it
+      departure_date: tm30Info?.departure_date ?? null,
 
-      property: tm30Info?.property || "RoomQuest Hotel",
-      room_number: tm30Info?.room_number || (session as any)?.room_number || null,
-      notes: tm30Info?.notes || null,
+      property: tm30Info?.property ?? "RoomQuest Hotel",
+      room_number: tm30Info?.room_number ?? s?.room_number ?? null,
+      notes: tm30Info?.notes ?? null,
     },
   } as ExtendedSessionRow;
 };
@@ -124,11 +130,9 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
-  // Local TM30 state (TODO: Replace with backend persistence)
   const [tm30DataMap, setTm30DataMap] = useState<Record<string, TM30Data>>({});
   const [tm30ReadyMap, setTm30ReadyMap] = useState<Record<string, boolean>>({});
 
-  // Convert sessions to extended sessions with local TM30 overrides
   const extendedSessions = useMemo(() => {
     return sessions.map((session) => {
       const extended = toExtendedSession(session);
@@ -162,8 +166,9 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
   };
 
   const getTM30StatusBadge = (session: ExtendedSessionRow) => {
-    // Check if manually marked as ready
-    if (tm30ReadyMap[(session as any).id]) {
+    const id = (session as any).id;
+
+    if (tm30ReadyMap[id]) {
       return (
         <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
           <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -181,6 +186,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
         </Badge>
       );
     }
+
     return (
       <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-xs">
         <AlertTriangle className="w-3 h-3 mr-1" />
@@ -208,8 +214,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
 
   const readySessions = filteredSessions.filter((s) => {
     if (tm30ReadyMap[(s as any).id]) return true;
-    const { ready } = getTM30ReadyStatus((s as any).tm30);
-    return ready;
+    return getTM30ReadyStatus((s as any).tm30).ready;
   });
 
   const selectedReadySessions = filteredSessions.filter(
@@ -228,21 +233,16 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
 
   const handleSelectRow = (id: string, checked: boolean) => {
     const newSelected = new Set(selectedRows);
-    if (checked) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
-    }
+    if (checked) newSelected.add(id);
+    else newSelected.delete(id);
     setSelectedRows(newSelected);
   };
 
   const handleSaveTM30 = (sessionId: string, tm30Data: TM30Data) => {
-    // TODO: Replace with actual API call
     setTm30DataMap((prev) => ({ ...prev, [sessionId]: tm30Data }));
   };
 
   const handleMarkReady = (sessionId: string) => {
-    // TODO: Replace with actual API call
     setTm30ReadyMap((prev) => ({ ...prev, [sessionId]: true }));
   };
 
@@ -250,15 +250,10 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
     const toExport = selectedRows.size > 0 ? selectedReadySessions : readySessions;
 
     if (toExport.length === 0) {
-      toast({
-        title: "No Records",
-        description: "No TM30 Ready records to export.",
-        variant: "destructive",
-      });
+      toast({ title: "No Records", description: "No TM30 Ready records to export.", variant: "destructive" });
       return;
     }
 
-    // Check if user selected non-ready rows
     if (selectedRows.size > 0 && selectedReadySessions.length < selectedRows.size) {
       toast({
         title: "Partial Export",
@@ -266,23 +261,16 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
       });
     }
 
-    if (format === "csv") {
-      exportTM30ToCSV(toExport, "tm30_bulk_export");
-    } else {
-      exportTM30ToJSON(toExport, "tm30_bulk_export");
-    }
+    if (format === "csv") exportTM30ToCSV(toExport, "tm30_bulk_export");
+    else exportTM30ToJSON(toExport, "tm30_bulk_export");
 
-    toast({
-      title: "Exported",
-      description: `${toExport.length} TM30 records exported as ${format.toUpperCase()}.`,
-    });
+    toast({ title: "Exported", description: `${toExport.length} TM30 records exported as ${format.toUpperCase()}.` });
   };
 
   const hasSelectedRows = selectedRows.size > 0;
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h2 className="text-2xl text-white font-poppins font-thin">{t("staff.todayVerifications")}</h2>
 
@@ -308,7 +296,6 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
         </div>
       </div>
 
-      {/* Bulk TM30 Export Toolbar */}
       <AnimatePresence>
         {(hasSelectedRows || readySessions.length > 0) && (
           <motion.div
@@ -362,7 +349,6 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
         )}
       </AnimatePresence>
 
-      {/* Filters */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto ml-auto">
           <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as FilterStatus)}>
@@ -399,7 +385,6 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -416,6 +401,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
               <TableHead className="text-white/80">{t("staff.table.details")}</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {filteredSessions.length === 0 ? (
               <TableRow>
@@ -425,46 +411,47 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
               </TableRow>
             ) : (
               filteredSessions.map((session) => {
-                const isReady = tm30ReadyMap[(session as any).id] || getTM30ReadyStatus((session as any).tm30).ready;
+                const id = (session as any).id;
+                const isReady = tm30ReadyMap[id] || getTM30ReadyStatus((session as any).tm30).ready;
+
                 return (
-                  <AnimatePresence key={(session as any).id}>
+                  <AnimatePresence key={id}>
                     <TableRow className="border-white/10 hover:bg-white/5 transition-colors">
                       <TableCell>
                         <Checkbox
-                          checked={selectedRows.has((session as any).id)}
-                          onCheckedChange={(checked) => handleSelectRow((session as any).id, checked === true)}
+                          checked={selectedRows.has(id)}
+                          onCheckedChange={(checked) => handleSelectRow(id, checked === true)}
                           disabled={!isReady}
                           className="border-white/30 data-[state=checked]:bg-primary disabled:opacity-30"
                         />
                       </TableCell>
+
                       <TableCell className="text-white font-medium">{(session as any).guest_name}</TableCell>
                       <TableCell className="text-white/80">{(session as any).room_number}</TableCell>
                       <TableCell>{getStatusBadge(session)}</TableCell>
                       <TableCell>{getTM30StatusBadge(session)}</TableCell>
+
                       <TableCell className="text-white/80">
                         {(session as any).verification_score > 0
                           ? `${(((session as any).verification_score as number) * 100).toFixed(0)}%`
                           : t("staff.table.na")}
                       </TableCell>
+
                       <TableCell className="text-white/80">{formatTime((session as any).created_at)}</TableCell>
+
                       <TableCell>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
-                            setExpandedRow(expandedRow === (session as any).id ? null : (session as any).id)
-                          }
+                          onClick={() => setExpandedRow(expandedRow === id ? null : id)}
                           className="text-white/80 hover:text-white hover:bg-white/10"
                         >
-                          {expandedRow === (session as any).id ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4" />
-                          )}
+                          {expandedRow === id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </Button>
                       </TableCell>
                     </TableRow>
-                    {expandedRow === (session as any).id && (
+
+                    {expandedRow === id && (
                       <TableRow className="border-white/10">
                         <TableCell colSpan={8} className="p-0">
                           <TM30DetailsDrawer session={session} onSave={handleSaveTM30} onMarkReady={handleMarkReady} />
