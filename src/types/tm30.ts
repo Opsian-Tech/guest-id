@@ -20,10 +20,7 @@ export interface TM30Data {
   nationality?: string | null;
   sex?: "M" | "F" | "X" | null;
   arrival_date_time?: string | null;
-
-  // Keep field for compatibility, but it is NOT required anymore
   departure_date?: string | null;
-
   property?: string | null;
   room_number?: string | null;
   notes?: string | null;
@@ -49,7 +46,6 @@ export interface ExtendedSessionRow {
 }
 
 // TM30 Required fields for "Ready" status
-// NOTE: departure_date removed
 export const TM30_REQUIRED_FIELDS: (keyof TM30Data)[] = [
   "nationality",
   "sex",
@@ -67,13 +63,11 @@ export const getConfidenceLevel = (score: number | null | undefined): Confidence
   return "low";
 };
 
-export const getTM30ReadyStatus = (
-  tm30: TM30Data | undefined,
-): { ready: boolean; missingFields: (keyof TM30Data)[] } => {
-  const missingFields: (keyof TM30Data)[] = [];
+export const getTM30ReadyStatus = (tm30: TM30Data | undefined): { ready: boolean; missingFields: string[] } => {
+  const missingFields: string[] = [];
 
   if (!tm30) {
-    return { ready: false, missingFields: TM30_REQUIRED_FIELDS };
+    return { ready: false, missingFields: TM30_REQUIRED_FIELDS as string[] };
   }
 
   TM30_REQUIRED_FIELDS.forEach((field) => {
