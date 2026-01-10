@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   ExtendedSessionRow, 
   TM30Data, 
+  getTM30ReadyStatus, 
   getConfidenceLevel,
   COMMON_NATIONALITIES,
   ConfidenceLevel 
@@ -52,22 +53,12 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
   const [confirmExtracted, setConfirmExtracted] = useState(false);
   const [showOtherNationality, setShowOtherNationality] = useState(false);
   
-  const extracted = session.extracted_info || {};
-  
-  // Auto-fill: check if value came from OCR/created_at (not saved in tm30 yet)
-  const nationalityFromOCR = !session.tm30?.nationality && !!extracted.nationality;
-  const sexFromOCR = !session.tm30?.sex && !!extracted.sex;
-  const arrivalFromCreatedAt = !session.tm30?.arrival_date_time && !!session.created_at;
-  
-  // TM30 form state with auto-fill from extracted data
+  // TM30 form state
   const [formData, setFormData] = useState<TM30Data>({
-    // Nationality: use tm30 first, then extracted, then null
-    nationality: session.tm30?.nationality || extracted.nationality || null,
-    // Sex: use tm30 first, then extracted, then null
-    sex: session.tm30?.sex || (extracted.sex as "M" | "F" | "X") || null,
-    // Arrival: use tm30 first, then created_at
-    arrival_date_time: session.tm30?.arrival_date_time || session.created_at || null,
-    departure_date: session.tm30?.departure_date || null,
+    nationality: session.tm30?.nationality || null,
+    sex: session.tm30?.sex || null,
+    arrival_date_time: session.tm30?.arrival_date_time || session.reservation?.check_in_time || null,
+    departure_date: session.tm30?.departure_date || session.reservation?.check_out_date || null,
     property: session.tm30?.property || session.reservation?.property_name || null,
     room_number: session.tm30?.room_number || session.room_number || null,
     notes: session.tm30?.notes || null,
@@ -75,42 +66,8 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
   
   const [originalData] = useState<TM30Data>(formData);
   
-  // Custom missing fields calculation that considers auto-fill sources
-  const computeMissingFields = (): string[] => {
-    const missing: string[] = [];
-    
-    // Nationality: check formData OR extracted
-    if (!formData.nationality && !extracted.nationality) {
-      missing.push("nationality");
-    }
-    
-    // Sex: check formData OR extracted  
-    if (!formData.sex && !extracted.sex) {
-      missing.push("sex");
-    }
-    
-    // Arrival: check formData OR created_at
-    if (!formData.arrival_date_time && !session.created_at) {
-      missing.push("arrival_date_time");
-    }
-    
-    // Property: always required in formData
-    if (!formData.property) {
-      missing.push("property");
-    }
-    
-    // Room number: always required in formData
-    if (!formData.room_number) {
-      missing.push("room_number");
-    }
-    
-    // NOTE: departure_date is NOT checked anymore
-    
-    return missing;
-  };
-  
-  const missingFields = computeMissingFields();
-  const ready = missingFields.length === 0;
+  const extracted = session.extracted_info || {};
+  const { ready, missingFields } = getTM30ReadyStatus(formData);
   
   // Confidence checks
   const nameConfidence = getConfidenceLevel(extracted.name_confidence);
@@ -348,8 +305,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               {renderExtractedField("First Name", extracted.first_name)}
               {renderExtractedField("Middle Name", extracted.middle_name)}
               {renderExtractedField("Last Name", extracted.last_name)}
-              {renderExtractedField("Nationality", extracted.nationality)}
-              {renderExtractedField("Sex", extracted.sex)}
               {renderExtractedField("Document Number", extracted.document_number)}
               {renderExtractedField("Date of Birth", extracted.date_of_birth)}
               {renderExtractedField("Date of Issue", extracted.date_of_issue)}
@@ -405,9 +360,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               <div className="space-y-1">
                 <Label className={`text-xs ${missingFields.includes("nationality") ? "text-red-400" : "text-gray-500"}`}>
                   Nationality <span className="text-red-400">*</span>
-                  {nationalityFromOCR && (
-                    <span className="text-green-500 ml-2 text-xs font-normal">(from OCR)</span>
-                  )}
                 </Label>
                 {showOtherNationality ? (
                   <div className="flex gap-2">
@@ -454,9 +406,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               <div className="space-y-1">
                 <Label className={`text-xs ${missingFields.includes("sex") ? "text-red-400" : "text-gray-500"}`}>
                   Sex <span className="text-red-400">*</span>
-                  {sexFromOCR && (
-                    <span className="text-green-500 ml-2 text-xs font-normal">(from OCR)</span>
-                  )}
                 </Label>
                 <div className="flex gap-2">
                   {(["M", "F", "X"] as const).map((option) => (
@@ -479,24 +428,8 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                 {missingFields.includes("sex") && <p className="text-red-400 text-xs">Required</p>}
               </div>
               
-              {/* Arrival Date/Time with auto-fill indicator */}
-              <div className="space-y-1">
-                <Label className={`text-xs ${missingFields.includes("arrival_date_time") ? "text-red-400" : "text-gray-500"}`}>
-                  Arrival Date/Time <span className="text-red-400">*</span>
-                  {arrivalFromCreatedAt && (
-                    <span className="text-green-500 ml-2 text-xs font-normal">(from check-in)</span>
-                  )}
-                </Label>
-                <Input
-                  type="datetime-local"
-                  value={formData.arrival_date_time || ""}
-                  onChange={(e) => setFormData(prev => ({ ...prev, arrival_date_time: e.target.value || null }))}
-                  className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
-                    missingFields.includes("arrival_date_time") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
-                  }`}
-                />
-                {missingFields.includes("arrival_date_time") && <p className="text-red-400 text-xs">Required</p>}
-              </div>
+              {renderRequiredInput("Arrival Date/Time", "arrival_date_time", "datetime-local")}
+              {renderRequiredInput("Departure Date", "departure_date", "date")}
               
               {/* Property (read-only) */}
               <div className="space-y-1">
