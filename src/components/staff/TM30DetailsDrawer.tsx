@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Copy,
@@ -18,7 +18,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,14 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import {
-  ExtendedSessionRow,
-  TM30Data,
-  getTM30ReadyStatus,
-  getConfidenceLevel,
-  COMMON_NATIONALITIES,
-  ConfidenceLevel,
-} from "@/types/tm30";
+import { ExtendedSessionRow, TM30Data, getTM30ReadyStatus, getConfidenceLevel, ConfidenceLevel } from "@/types/tm30";
 import { exportSingleTM30 } from "@/lib/tm30ExportUtils";
 
 interface TM30DetailsDrawerProps {
@@ -49,7 +41,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmExtracted, setConfirmExtracted] = useState(false);
-  const [showOtherNationality, setShowOtherNationality] = useState(false);
 
   // TM30 form state
   const [formData, setFormData] = useState<TM30Data>({
@@ -99,7 +90,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
 
   const handleCancel = () => {
     setFormData(originalData);
-    setShowOtherNationality(false);
   };
 
   const handleExport = (format: "csv" | "json" | "pdf") => {
@@ -113,16 +103,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
     }
     exportSingleTM30(session, format);
     toast({ title: "Exported", description: `TM30 data exported as ${format.toUpperCase()}.` });
-  };
-
-  const handleNationalityChange = (value: string) => {
-    if (value === "__other__") {
-      setShowOtherNationality(true);
-      setFormData((prev) => ({ ...prev, nationality: "" }));
-    } else {
-      setShowOtherNationality(false);
-      setFormData((prev) => ({ ...prev, nationality: value }));
-    }
   };
 
   const renderExtractedField = (label: string, value: string | null | undefined) => {
@@ -312,7 +292,6 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
               {renderExtractedField("Date of Birth", extracted.date_of_birth)}
               {renderExtractedField("Date of Issue", extracted.date_of_issue)}
               {renderExtractedField("Expiration Date", extracted.expiration_date)}
-              {renderExtractedField("ID Type", extracted.id_type)}
             </div>
 
             {/* MRZ Code */}
@@ -359,53 +338,23 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
             </h4>
 
             <div className="space-y-4">
-              {/* Nationality */}
+              {/* Nationality (simple text input) */}
               <div className="space-y-1">
                 <Label
                   className={`text-xs ${missingFields.includes("nationality") ? "text-red-400" : "text-gray-500"}`}
                 >
                   Nationality <span className="text-red-400">*</span>
                 </Label>
-                {showOtherNationality ? (
-                  <div className="flex gap-2">
-                    <Input
-                      value={formData.nationality || ""}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, nationality: e.target.value || null }))}
-                      placeholder="Enter nationality"
-                      className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
-                        missingFields.includes("nationality") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
-                      }`}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowOtherNationality(false)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      Back
-                    </Button>
-                  </div>
-                ) : (
-                  <Select value={formData.nationality || ""} onValueChange={handleNationalityChange}>
-                    <SelectTrigger
-                      className={`bg-gray-50 border-gray-300 text-gray-900 ${
-                        missingFields.includes("nationality") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
-                      }`}
-                    >
-                      <SelectValue placeholder="Select nationality" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-gray-200 max-h-60">
-                      {COMMON_NATIONALITIES.map((nat) => (
-                        <SelectItem key={nat} value={nat} className="text-gray-700 hover:bg-gray-100">
-                          {nat}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="__other__" className="text-gray-700 hover:bg-gray-100">
-                        Not listed / Other
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
+
+                <Input
+                  value={formData.nationality || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, nationality: e.target.value || null }))}
+                  placeholder="e.g. USA"
+                  className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
+                    missingFields.includes("nationality") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
+                  }`}
+                />
+
                 {missingFields.includes("nationality") && <p className="text-red-400 text-xs">Required</p>}
               </div>
 
@@ -438,7 +387,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
 
               {renderRequiredInput("Arrival Date/Time", "arrival_date_time", "datetime-local")}
 
-              {/* Property (read-only) */}
+              {/* Property */}
               <div className="space-y-1">
                 <Label className={`text-xs ${missingFields.includes("property") ? "text-red-400" : "text-gray-500"}`}>
                   Property <span className="text-red-400">*</span>
@@ -454,7 +403,7 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
                 {missingFields.includes("property") && <p className="text-red-400 text-xs">Required</p>}
               </div>
 
-              {renderRequiredInput("Room Number", "room_number", "text", "e.g. 101")}
+              {renderRequiredInput("Reservation Number", "room_number", "text", "e.g. S923485")}
 
               {/* Notes */}
               <div className="space-y-1">
