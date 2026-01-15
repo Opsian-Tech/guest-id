@@ -107,11 +107,23 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       const isVerified = parseBool(responseData.is_verified ?? response.is_verified);
 
       // Parse multi-guest fields from BOTH locations with type coercion
-      const guestVerified = parseBool(responseData.guest_verified ?? response.guest_verified);
+      const guestVerifiedRaw = responseData.guest_verified ?? response.guest_verified;
+      // IMPORTANT: guest_verified may not exist yet - fallback to is_verified
+      const guestVerified = guestVerifiedRaw !== undefined 
+        ? parseBool(guestVerifiedRaw) 
+        : isVerified;
+      
       const requiresAdditionalGuestRaw = responseData.requires_additional_guest ?? response.requires_additional_guest;
       const verifiedGuestCountRaw = responseData.verified_guest_count ?? response.verified_guest_count;
       const expectedGuestCountRaw = responseData.expected_guest_count ?? response.expected_guest_count;
       const guestIndexRaw = responseData.guest_index ?? response.guest_index;
+
+      console.log("[Selfie] guest_verified resolution:", {
+        rawValue: guestVerifiedRaw,
+        fallbackUsed: guestVerifiedRaw === undefined,
+        finalValue: guestVerified,
+        isVerified,
+      });
 
       console.log("[Selfie] Parsed from verify_face:", {
         guestVerified,
