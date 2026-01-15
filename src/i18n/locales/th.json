@@ -34,7 +34,8 @@
   },
   "verify": {
     "title": "OPSIAN",
-    "subtitle": "การยืนยันตัวตน"
+    "subtitle": "การยืนยันตัวตน",
+    "guestProgress": "แขกคนที่ {{current}} จาก {{total}}"
   },
   "consent": {
     "title": "ประกาศความยินยอมและความเป็นส่วนตัว",
@@ -95,7 +96,9 @@
     "captureButton": "ถ่ายเซลฟี่",
     "guestVerified": "แขกคนที่ {{verified}} ยืนยันแล้ว! แขกคนถัดไป โปรดอัปโหลดบัตรประจำตัวของคุณ",
     "identityVerified": "ยืนยันตัวตนสำเร็จ!",
-    "verificationComplete": "การยืนยันเสร็จสมบูรณ์ - ตรวจสอบผลลัพธ์"
+    "verificationComplete": "การยืนยันเสร็จสมบูรณ์ - ตรวจสอบผลลัพธ์",
+    "verificationFailed": "การยืนยันล้มเหลว",
+    "retakeSelfie": "โปรดถ่ายเซลฟี่อีกครั้ง"
   },
   "results": {
     "successTitle": "การยืนยันตัวตนสำเร็จ!",
