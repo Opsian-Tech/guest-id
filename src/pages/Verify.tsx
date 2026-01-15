@@ -6,6 +6,7 @@ import DocumentStep from "@/components/verify/DocumentStep";
 import SelfieStep from "@/components/verify/SelfieStep";
 import ResultsStep from "@/components/verify/ResultsStep";
 import ConsentModal from "@/components/verify/ConsentModal";
+import GuestProgressIndicator from "@/components/verify/GuestProgressIndicator";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -24,6 +25,7 @@ export type VerificationData = {
   livenessScore?: number;
   faceMatchScore?: number;
   // Multi-guest verification fields
+  guestVerified?: boolean;
   expectedGuestCount?: number;
   verifiedGuestCount?: number;
   guestIndex?: number;
@@ -82,6 +84,11 @@ const Verify = () => {
           consentTime: session.consent_time,
           isVerified: session.is_verified,
           verificationScore: session.verification_score,
+          // Multi-guest fields from session resume
+          expectedGuestCount: session.expected_guest_count,
+          verifiedGuestCount: session.verified_guest_count,
+          guestIndex: session.guest_index,
+          requiresAdditionalGuest: session.requires_additional_guest,
         });
 
         // Determine consent visibility using BOTH local and backend state (null-safe)
@@ -133,6 +140,9 @@ const Verify = () => {
         </div>
 
         <div className="w-full max-w-2xl">
+          {/* Guest progress indicator - only shows for 2+ guests */}
+          <GuestProgressIndicator data={data} />
+          
           <AnimatePresence mode="wait">
             {step === 1 && (
               <WelcomeStep

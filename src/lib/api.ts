@@ -115,6 +115,7 @@ export interface VerifyResponse {
   extracted_text?: string;
 
   // Multi-guest verification fields (from verify_face response)
+  guest_verified?: boolean;  // Did THIS guest pass verification?
   requires_additional_guest?: boolean;
   expected_guest_count?: number;
   verified_guest_count?: number;

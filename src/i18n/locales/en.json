@@ -34,7 +34,8 @@
   },
   "verify": {
     "title": "OPSIAN",
-    "subtitle": "Identity Verification"
+    "subtitle": "Identity Verification",
+    "guestProgress": "Guest {{current}} of {{total}}"
   },
   "consent": {
     "title": "Consent & Privacy Notice",
@@ -95,7 +96,9 @@
     "captureButton": "Capture Selfie",
     "guestVerified": "Guest {{verified}} verified! Next guest, please upload your ID.",
     "identityVerified": "Identity verified!",
-    "verificationComplete": "Verification complete - check results"
+    "verificationComplete": "Verification complete - check results",
+    "verificationFailed": "Verification failed",
+    "retakeSelfie": "Please retake your selfie."
   },
   "results": {
     "successTitle": "Verification Successful!",
