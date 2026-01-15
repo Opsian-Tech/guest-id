@@ -187,6 +187,7 @@
       "failed": "ล้มเหลว",
       "guestName": "ชื่อแขก",
       "roomNumber": "หมายเลขการจอง",
+      "guests": "แขก",
       "status": "สถานะ",
       "score": "คะแนน",
       "time": "เวลา",
@@ -202,7 +203,10 @@
       "na": "ไม่มีข้อมูล",
       "livenessScore": "คะแนนตรวจสอบชีวิต",
       "faceMatchScore": "คะแนนความตรงกันของใบหน้า",
-      "documentStatus": "สถานะเอกสาร"
+      "documentStatus": "เอกสาร",
+      "selfieStatus": "เซลฟี่",
+      "guestsProgress": "{{verified}}/{{total}}",
+      "guestLabel": "แขกคนที่ {{index}}"
     }
   },
   "settings": {

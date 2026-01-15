@@ -32,6 +32,17 @@ export interface ReservationInfo {
   property_name?: string | null;
 }
 
+export interface GuestVerificationStatus {
+  guest_index: number;
+  guest_verified: boolean;
+  document_uploaded: boolean;
+  selfie_uploaded: boolean;
+  verification_score?: number;
+  liveness_score?: number;
+  face_match_score?: number;
+  verified_at?: string;
+}
+
 export interface ExtendedSessionRow {
   id: string;
   guest_name: string;
@@ -43,6 +54,10 @@ export interface ExtendedSessionRow {
   extracted_info?: ExtractedInfo;
   reservation?: ReservationInfo;
   tm30?: TM30Data;
+  // Multi-guest verification fields
+  expected_guest_count?: number;
+  verified_guest_count?: number;
+  guest_verifications?: GuestVerificationStatus[];
 }
 
 // TM30 Required fields for "Ready" status
