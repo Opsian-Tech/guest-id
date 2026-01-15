@@ -13,11 +13,12 @@ type Props = {
   data: VerificationData;
   updateData: (data: Partial<VerificationData>) => void;
   onNext: () => void;
+  onNextGuest: () => void;
   onBack: () => void;
   onError: (error: Error) => void;
 };
 
-const SelfieStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
+const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: Props) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const { t } = useTranslation();
@@ -85,24 +86,45 @@ const SelfieStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
       const verificationScore = responseData?.verification_score ?? response.verification_score;
       const isVerified = responseData?.is_verified ?? response.is_verified;
 
-      console.log("[Selfie] Scores:", { livenessScore, faceMatchScore, verificationScore });
+      // Extract multi-guest fields from response
+      const requiresAdditionalGuest = response.requires_additional_guest ?? false;
+      const verifiedGuestCount = response.verified_guest_count;
+      const expectedGuestCount = response.expected_guest_count;
+      const guestIndex = response.guest_index;
 
-      // Always update scores, even on failure
+      console.log("[Selfie] Scores:", { livenessScore, faceMatchScore, verificationScore });
+      console.log("[Selfie] Multi-guest:", { requiresAdditionalGuest, verifiedGuestCount, expectedGuestCount, guestIndex });
+
+      // Always update scores and multi-guest state
       updateData({
         selfieImage: optimizeResult.dataUrl,
         livenessScore,
         faceMatchScore,
         verificationScore,
         isVerified,
+        requiresAdditionalGuest,
+        verifiedGuestCount,
+        expectedGuestCount,
+        guestIndex,
       });
 
-      if (isSuccess && isVerified) {
+      if (requiresAdditionalGuest) {
+        // More guests need to verify - loop back to document step
+        console.log("[Selfie] Additional guest required, looping back to document step");
+        toast({ 
+          title: t('selfie.guestVerified', { 
+            verified: verifiedGuestCount || 1,
+            next: (verifiedGuestCount || 1) + 1 
+          })
+        });
+        onNextGuest();
+      } else if (isSuccess && isVerified) {
         console.log("[Selfie] Verification successful");
-        toast({ title: "Identity verified!" });
+        toast({ title: t('selfie.identityVerified') });
         onNext();
       } else {
         console.log("[Selfie] Verification completed with issues");
-        toast({ title: "Verification complete - check results" });
+        toast({ title: t('selfie.verificationComplete') });
         onNext();
       }
     } catch (error) {

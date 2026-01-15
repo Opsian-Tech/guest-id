@@ -78,6 +78,11 @@ export interface SessionState {
   verification_score?: number | null;
   liveness_score?: number | null;
   face_match_score?: number | null;
+  // Multi-guest verification fields
+  requires_additional_guest?: boolean;
+  expected_guest_count?: number;
+  verified_guest_count?: number;
+  guest_index?: number;
 }
 
 // Session alias - use SessionRow for admin/staff tables
@@ -108,6 +113,13 @@ export interface VerifyResponse {
   };
 
   extracted_text?: string;
+
+  // Multi-guest verification fields (from verify_face response)
+  requires_additional_guest?: boolean;
+  expected_guest_count?: number;
+  verified_guest_count?: number;
+  remaining_guest_verifications?: number;
+  guest_index?: number;
 }
 
 export interface AdminStats {

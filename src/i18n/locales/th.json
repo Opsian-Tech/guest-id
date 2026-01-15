@@ -76,7 +76,8 @@
     "retake": "ถ่ายใหม่",
     "confirm": "ยืนยันและอัปโหลด",
     "uploading": "กำลังอัปโหลด...",
-    "captureButton": "ถ่ายเอกสาร"
+    "captureButton": "ถ่ายเอกสาร",
+    "nextGuestMessage": "แขกคนที่ {{verified}} ยืนยันแล้ว แขกคนที่ {{next}} โปรดอัปโหลดบัตรประจำตัวของคุณ"
   },
   "selfie": {
     "title": "การยืนยันใบหน้า",
@@ -91,7 +92,10 @@
     "confirm": "ยืนยันและตรวจสอบ",
     "verifying": "กำลังยืนยันตัวตนของคุณ...",
     "processingTM30": "กำลังดำเนินการ TM 30",
-    "captureButton": "ถ่ายเซลฟี่"
+    "captureButton": "ถ่ายเซลฟี่",
+    "guestVerified": "แขกคนที่ {{verified}} ยืนยันแล้ว! แขกคนถัดไป โปรดอัปโหลดบัตรประจำตัวของคุณ",
+    "identityVerified": "ยืนยันตัวตนสำเร็จ!",
+    "verificationComplete": "การยืนยันเสร็จสมบูรณ์ - ตรวจสอบผลลัพธ์"
   },
   "results": {
     "successTitle": "การยืนยันตัวตนสำเร็จ!",

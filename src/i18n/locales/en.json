@@ -76,7 +76,8 @@
     "retake": "Retake Photo",
     "confirm": "Confirm & Upload",
     "uploading": "Uploading...",
-    "captureButton": "Capture Document"
+    "captureButton": "Capture Document",
+    "nextGuestMessage": "Guest {{verified}} verified. Guest {{next}}, please upload your ID."
   },
   "selfie": {
     "title": "Facial Verification",
@@ -91,7 +92,10 @@
     "confirm": "Confirm & Verify",
     "verifying": "Verifying your identity...",
     "processingTM30": "Processing TM 30",
-    "captureButton": "Capture Selfie"
+    "captureButton": "Capture Selfie",
+    "guestVerified": "Guest {{verified}} verified! Next guest, please upload your ID.",
+    "identityVerified": "Identity verified!",
+    "verificationComplete": "Verification complete - check results"
   },
   "results": {
     "successTitle": "Verification Successful!",
