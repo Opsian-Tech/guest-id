@@ -42,6 +42,7 @@ export interface UploadDocumentRequest {
   document_type?: string;
   guest_name?: string;
   room_number?: string;
+  guest_index?: number;
 }
 
 export interface VerifyFaceRequest {
@@ -49,6 +50,7 @@ export interface VerifyFaceRequest {
   session_token: string;
   image_data?: string;
   selfie_data: string;
+  guest_index?: number;
 }
 
 export type VerifyRequest =
@@ -110,6 +112,12 @@ export interface VerifyResponse {
     verification_score?: number;
     liveness_score?: number;
     face_match_score?: number;
+    // Multi-guest fields may also appear here
+    guest_verified?: boolean;
+    requires_additional_guest?: boolean;
+    verified_guest_count?: number;
+    expected_guest_count?: number;
+    guest_index?: number;
   };
 
   extracted_text?: string;

@@ -68,6 +68,7 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
 
       console.log("[Document] Sending upload request...");
 
+      // Include guest_index in request if available
       const response = await api.verify({
         action: "upload_document",
         session_token: data.sessionToken,
@@ -75,6 +76,7 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
         document_type: "passport",
         guest_name: data.guestName,
         room_number: data.roomNumber,
+        guest_index: data.guestIndex,
       });
 
       if (response.success) {
@@ -116,13 +118,16 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
         {t('document.back')}
       </Button>
 
-      {/* Multi-guest progress banner */}
-      {data.verifiedGuestCount != null && data.verifiedGuestCount > 0 && (
+      {/* Multi-guest progress banner - only show when Guest 1+ verified AND multi-guest session */}
+      {data.verifiedGuestCount != null && 
+       data.verifiedGuestCount > 0 && 
+       data.expectedGuestCount != null && 
+       data.expectedGuestCount >= 2 && (
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-6 text-center border border-white/20">
           <p className="text-white/90">
             {t('document.nextGuestMessage', {
               verified: data.verifiedGuestCount,
-              next: (data.verifiedGuestCount || 0) + 1
+              next: data.verifiedGuestCount + 1
             })}
           </p>
         </div>

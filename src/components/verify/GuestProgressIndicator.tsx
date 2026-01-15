@@ -17,8 +17,11 @@ const GuestProgressIndicator = ({ data }: Props) => {
     return null;
   }
 
-  const currentGuest = (data.guestIndex || 0) + 1; // guestIndex is 0-based
+  // Calculate current guest from verified count (more reliable than guestIndex)
+  // Current guest = verifiedGuestCount + 1, capped at expectedGuestCount
+  const verifiedCount = data.verifiedGuestCount ?? 0;
   const totalGuests = data.expectedGuestCount;
+  const currentGuest = Math.min(verifiedCount + 1, totalGuests);
 
   return (
     <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2 mb-4 text-center">
