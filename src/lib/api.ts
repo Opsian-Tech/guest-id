@@ -169,6 +169,22 @@ export interface SessionRow {
   status?: string;
   liveness_score?: number | null;
   face_match_score?: number | null;
+  // Multi-guest verification fields
+  expected_guest_count?: number;
+  verified_guest_count?: number;
+  guest_verifications?: GuestVerification[];
+}
+
+// Individual guest verification record
+export interface GuestVerification {
+  guest_index: number;
+  guest_verified: boolean;
+  document_uploaded: boolean;
+  selfie_uploaded: boolean;
+  verification_score?: number;
+  liveness_score?: number;
+  face_match_score?: number;
+  verified_at?: string;
 }
 
 /* ======================================================

@@ -16,8 +16,8 @@ import { exportTM30ToCSV, exportTM30ToJSON } from "@/lib/tm30ExportUtils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SessionRow } from "@/lib/api";
-import { ExtendedSessionRow, TM30Data, getTM30ReadyStatus } from "@/types/tm30";
+import { SessionRow, GuestVerification } from "@/lib/api";
+import { ExtendedSessionRow, TM30Data, getTM30ReadyStatus, GuestVerificationStatus } from "@/types/tm30";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -96,6 +96,18 @@ const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
 
   const arrivalFromCreatedAt = toDatetimeLocalFromISO(s.created_at);
 
+  // Convert guest_verifications from API to GuestVerificationStatus
+  const guestVerifications: GuestVerificationStatus[] = (s.guest_verifications || []).map((gv: GuestVerification) => ({
+    guest_index: gv.guest_index,
+    guest_verified: gv.guest_verified,
+    document_uploaded: gv.document_uploaded,
+    selfie_uploaded: gv.selfie_uploaded,
+    verification_score: gv.verification_score,
+    liveness_score: gv.liveness_score,
+    face_match_score: gv.face_match_score,
+    verified_at: gv.verified_at,
+  }));
+
   return {
     ...s,
     extracted_info,
@@ -119,6 +131,10 @@ const toExtendedSession = (session: SessionRow): ExtendedSessionRow => {
       room_number: tm30Info?.room_number ?? s?.room_number ?? null,
       notes: tm30Info?.notes ?? null,
     },
+    // Multi-guest fields
+    expected_guest_count: s.expected_guest_count,
+    verified_guest_count: s.verified_guest_count,
+    guest_verifications: guestVerifications,
   } as ExtendedSessionRow;
 };
 
@@ -163,6 +179,61 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
       return <Badge className="bg-red-500/20 text-red-300 border-red-500/30">{t("staff.table.failed")}</Badge>;
     }
     return <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">{t("staff.table.pending")}</Badge>;
+  };
+
+  // Get multi-guest progress badge
+  const getGuestProgressBadge = (session: ExtendedSessionRow) => {
+    const expected = session.expected_guest_count;
+    const verified = session.verified_guest_count ?? 0;
+    
+    // Only show if multi-guest (2+ expected)
+    if (!expected || expected < 2) {
+      return null;
+    }
+
+    const allVerified = verified >= expected;
+    
+    return (
+      <Badge 
+        className={allVerified 
+          ? "bg-green-500/20 text-green-300 border-green-500/30" 
+          : "bg-blue-500/20 text-blue-300 border-blue-500/30"
+        }
+      >
+        {t("staff.table.guestsProgress", { verified, total: expected })}
+      </Badge>
+    );
+  };
+
+  // Get individual guest status icons
+  const getGuestVerificationDetails = (session: ExtendedSessionRow) => {
+    const guests = session.guest_verifications || [];
+    const expected = session.expected_guest_count || 1;
+    
+    if (expected < 2 || guests.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="flex flex-col gap-1 mt-2">
+        {guests.map((guest, idx) => (
+          <div key={idx} className="flex items-center gap-2 text-xs">
+            <span className="text-white/60">{t("staff.table.guestLabel", { index: guest.guest_index + 1 })}:</span>
+            <span className={guest.document_uploaded ? "text-green-400" : "text-yellow-400"}>
+              {guest.document_uploaded ? "✓" : "○"} {t("staff.table.documentStatus")}
+            </span>
+            <span className={guest.selfie_uploaded ? "text-green-400" : "text-yellow-400"}>
+              {guest.selfie_uploaded ? "✓" : "○"} {t("staff.table.selfieStatus")}
+            </span>
+            {guest.guest_verified && (
+              <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs py-0">
+                ✓ {t("staff.table.verified")}
+              </Badge>
+            )}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   const getTM30StatusBadge = (session: ExtendedSessionRow) => {
@@ -394,6 +465,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
               </TableHead>
               <TableHead className="text-white/80">{t("staff.table.guestName")}</TableHead>
               <TableHead className="text-white/80">{t("staff.table.roomNumber")}</TableHead>
+              <TableHead className="text-white/80">{t("staff.table.guests")}</TableHead>
               <TableHead className="text-white/80">{t("staff.table.status")}</TableHead>
               <TableHead className="text-white/80">TM30</TableHead>
               <TableHead className="text-white/80">{t("staff.table.score")}</TableHead>
@@ -405,7 +477,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
           <TableBody>
             {filteredSessions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-white/60 py-8">
+                <TableCell colSpan={9} className="text-center text-white/60 py-8">
                   {t("staff.table.noVerifications")}
                 </TableCell>
               </TableRow>
@@ -426,8 +498,16 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
                         />
                       </TableCell>
 
-                      <TableCell className="text-white font-medium">{(session as any).guest_name}</TableCell>
+                      <TableCell className="text-white font-medium">
+                        {(session as any).guest_name}
+                        {getGuestVerificationDetails(session)}
+                      </TableCell>
                       <TableCell className="text-white/80">{(session as any).room_number}</TableCell>
+                      <TableCell>
+                        {getGuestProgressBadge(session) || (
+                          <span className="text-white/40 text-sm">1</span>
+                        )}
+                      </TableCell>
                       <TableCell>{getStatusBadge(session)}</TableCell>
                       <TableCell>{getTM30StatusBadge(session)}</TableCell>
 
@@ -453,7 +533,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
 
                     {expandedRow === id && (
                       <TableRow className="border-white/10">
-                        <TableCell colSpan={8} className="p-0">
+                        <TableCell colSpan={9} className="p-0">
                           <TM30DetailsDrawer session={session} onSave={handleSaveTM30} onMarkReady={handleMarkReady} />
                         </TableCell>
                       </TableRow>

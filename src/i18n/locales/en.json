@@ -187,6 +187,7 @@
       "failed": "Failed",
       "guestName": "Guest Name",
       "roomNumber": "Reservation Number",
+      "guests": "Guests",
       "status": "Status",
       "score": "Score",
       "time": "Time",
@@ -202,7 +203,10 @@
       "na": "N/A",
       "livenessScore": "Liveness Score",
       "faceMatchScore": "Face Match Score",
-      "documentStatus": "Document Status"
+      "documentStatus": "Doc",
+      "selfieStatus": "Selfie",
+      "guestsProgress": "{{verified}}/{{total}}",
+      "guestLabel": "Guest {{index}}"
     }
   },
   "settings": {
