@@ -23,6 +23,11 @@ export type VerificationData = {
   selfieImage?: string;
   livenessScore?: number;
   faceMatchScore?: number;
+  // Multi-guest verification fields
+  expectedGuestCount?: number;
+  verifiedGuestCount?: number;
+  guestIndex?: number;
+  requiresAdditionalGuest?: boolean;
 };
 
 const stepFromBackend = (step?: string) => {
@@ -151,6 +156,14 @@ const Verify = () => {
                 data={data}
                 updateData={updateData}
                 onNext={() => setStep(4)}
+                onNextGuest={() => {
+                  // Clear per-guest images for next guest
+                  updateData({
+                    documentImage: undefined,
+                    selfieImage: undefined,
+                  });
+                  setStep(2);
+                }}
                 onBack={() => setStep(2)}
                 onError={(e) => toast({ title: "Error", description: e.message })}
               />

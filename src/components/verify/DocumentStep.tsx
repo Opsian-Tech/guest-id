@@ -116,6 +116,18 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
         {t('document.back')}
       </Button>
 
+      {/* Multi-guest progress banner */}
+      {data.verifiedGuestCount != null && data.verifiedGuestCount > 0 && (
+        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-6 text-center border border-white/20">
+          <p className="text-white/90">
+            {t('document.nextGuestMessage', {
+              verified: data.verifiedGuestCount,
+              next: (data.verifiedGuestCount || 0) + 1
+            })}
+          </p>
+        </div>
+      )}
+
       <h2 className="text-3xl md:text-4xl font-thin text-white mb-4 text-center">
         {t('document.title')}
       </h2>
