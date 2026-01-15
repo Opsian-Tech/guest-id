@@ -18,6 +18,23 @@ type Props = {
   onError: (error: Error) => void;
 };
 
+// Helper to parse boolean from various formats
+const parseBool = (val: unknown): boolean => {
+  if (typeof val === "boolean") return val;
+  if (val === "true" || val === 1) return true;
+  return false;
+};
+
+// Helper to parse number from various formats
+const parseNum = (val: unknown): number | undefined => {
+  if (typeof val === "number") return val;
+  if (typeof val === "string") {
+    const n = parseInt(val, 10);
+    return isNaN(n) ? undefined : n;
+  }
+  return undefined;
+};
+
 const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: Props) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -69,72 +86,140 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
 
       console.log("[Selfie] Sending verification request...");
 
+      // Include guest_index in request if available
       const response = await api.verify({
         action: "verify_face",
         session_token: data.sessionToken,
         selfie_data: cleanBase64,
         image_data: cleanBase64,
+        guest_index: data.guestIndex,
       });
 
-      // Check if verification was successful (handle both response formats)
-      const isSuccess = response.success || response.is_verified;
-      const responseData = response.data;
+      console.log("[Selfie] Raw verify_face response:", JSON.stringify(response, null, 2));
 
-      // Extract scores defensively from flat fields or nested data
-      const livenessScore = responseData?.liveness_score ?? response.liveness_score;
-      const faceMatchScore = responseData?.face_match_score ?? response.face_match_score;
-      const verificationScore = responseData?.verification_score ?? response.verification_score;
-      const isVerified = responseData?.is_verified ?? response.is_verified;
+      // Extract from response OR response.data (resilient parsing)
+      const responseData = response.data || {};
 
-      // Extract multi-guest fields from response
-      const guestVerified = response.guest_verified ?? false;
-      const requiresAdditionalGuest = response.requires_additional_guest ?? false;
-      const verifiedGuestCount = response.verified_guest_count;
-      const expectedGuestCount = response.expected_guest_count;
-      const guestIndex = response.guest_index;
+      // Parse scores defensively from flat fields or nested data
+      const livenessScore = responseData.liveness_score ?? response.liveness_score;
+      const faceMatchScore = responseData.face_match_score ?? response.face_match_score;
+      const verificationScore = responseData.verification_score ?? response.verification_score;
+      const isVerified = parseBool(responseData.is_verified ?? response.is_verified);
 
-      console.log("[Selfie] Scores:", { livenessScore, faceMatchScore, verificationScore });
-      console.log("[Selfie] Multi-guest:", { guestVerified, requiresAdditionalGuest, verifiedGuestCount, expectedGuestCount, guestIndex });
+      // Parse multi-guest fields from BOTH locations with type coercion
+      const guestVerified = parseBool(responseData.guest_verified ?? response.guest_verified);
+      const requiresAdditionalGuestRaw = responseData.requires_additional_guest ?? response.requires_additional_guest;
+      const verifiedGuestCountRaw = responseData.verified_guest_count ?? response.verified_guest_count;
+      const expectedGuestCountRaw = responseData.expected_guest_count ?? response.expected_guest_count;
+      const guestIndexRaw = responseData.guest_index ?? response.guest_index;
 
-      // Always update scores and multi-guest state
+      console.log("[Selfie] Parsed from verify_face:", {
+        guestVerified,
+        requiresAdditionalGuestRaw,
+        verifiedGuestCountRaw,
+        expectedGuestCountRaw,
+        guestIndexRaw,
+      });
+
+      // IMPORTANT: If guest_verified is false, do NOT advance - allow retake immediately
+      if (!guestVerified) {
+        console.log("[Selfie] Guest verification FAILED, allowing retake");
+        toast({
+          title: t('selfie.verificationFailed'),
+          description: t('selfie.retakeSelfie'),
+          variant: "destructive",
+        });
+        setCapturedImage(null); // Clear for retake
+        setIsProcessing(false);
+        return; // EXIT - do NOT update state or advance
+      }
+
+      // Guest verified! Now refresh session to get authoritative state
+      console.log("[Selfie] Guest verified, fetching authoritative session state...");
+      const sessionRes = await api.verify({
+        action: "get_session",
+        session_token: data.sessionToken,
+      });
+
+      console.log("[Selfie] Raw get_session response:", JSON.stringify(sessionRes, null, 2));
+
+      const session = sessionRes.session;
+
+      if (!session) {
+        console.error("[Selfie] No session in get_session response");
+        // Fallback: use verify_face response values
+        const fallbackRequiresAdditional = parseBool(requiresAdditionalGuestRaw);
+        const fallbackVerifiedCount = parseNum(verifiedGuestCountRaw) ?? 1;
+        const fallbackExpectedCount = parseNum(expectedGuestCountRaw) ?? 1;
+
+        updateData({
+          selfieImage: optimizeResult.dataUrl,
+          livenessScore,
+          faceMatchScore,
+          verificationScore,
+          isVerified,
+          guestVerified: true,
+          requiresAdditionalGuest: fallbackRequiresAdditional,
+          verifiedGuestCount: fallbackVerifiedCount,
+          expectedGuestCount: fallbackExpectedCount,
+        });
+
+        if (fallbackRequiresAdditional) {
+          toast({
+            title: t('selfie.guestVerified', {
+              verified: fallbackVerifiedCount,
+              next: fallbackVerifiedCount + 1,
+            }),
+          });
+          onNextGuest();
+        } else {
+          toast({ title: t('selfie.identityVerified') });
+          onNext();
+        }
+        return;
+      }
+
+      // Parse authoritative multi-guest fields from session
+      const authRequiresAdditionalGuest = parseBool(session.requires_additional_guest);
+      const authVerifiedGuestCount = parseNum(session.verified_guest_count) ?? 0;
+      const authExpectedGuestCount = parseNum(session.expected_guest_count) ?? 1;
+      const authGuestIndex = parseNum(session.guest_index);
+
+      console.log("[Selfie] Authoritative session state:", {
+        authRequiresAdditionalGuest,
+        authVerifiedGuestCount,
+        authExpectedGuestCount,
+        authGuestIndex,
+        currentStep: session.current_step,
+      });
+
+      // Update state with verified data
       updateData({
         selfieImage: optimizeResult.dataUrl,
         livenessScore,
         faceMatchScore,
         verificationScore,
         isVerified,
-        guestVerified,
-        requiresAdditionalGuest,
-        verifiedGuestCount,
-        expectedGuestCount,
-        guestIndex,
+        guestVerified: true,
+        requiresAdditionalGuest: authRequiresAdditionalGuest,
+        verifiedGuestCount: authVerifiedGuestCount,
+        expectedGuestCount: authExpectedGuestCount,
+        guestIndex: authGuestIndex,
       });
 
-      // ROUTING LOGIC: Check guest_verified FIRST
-      if (!guestVerified) {
-        // Case 1: THIS guest failed verification - stay on selfie screen
-        console.log("[Selfie] Guest verification failed, allowing retake");
+      // ROUTING based on authoritative session state
+      if (authRequiresAdditionalGuest) {
+        // More guests needed - loop back to document step
+        console.log("[Selfie] Additional guest required, looping to document step");
         toast({
-          title: t('selfie.verificationFailed'),
-          description: t('selfie.retakeSelfie'),
-          variant: "destructive",
-        });
-        setCapturedImage(null); // Allow retake
-        return; // Do NOT advance
-      }
-
-      if (requiresAdditionalGuest) {
-        // Case 2: Guest verified, more guests needed - loop back to document step
-        console.log("[Selfie] Guest verified, additional guest required, looping back to document step");
-        toast({ 
-          title: t('selfie.guestVerified', { 
-            verified: verifiedGuestCount || 1,
-            next: (verifiedGuestCount || 1) + 1 
-          })
+          title: t('selfie.guestVerified', {
+            verified: authVerifiedGuestCount,
+            next: authVerifiedGuestCount + 1,
+          }),
         });
         onNextGuest();
       } else {
-        // Case 3: All guests verified - go to results
+        // All guests verified - go to results
         console.log("[Selfie] All guests verified, proceeding to results");
         toast({ title: t('selfie.identityVerified') });
         onNext();
