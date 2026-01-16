@@ -157,6 +157,11 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
 
       const session = sessionRes.session;
 
+      // Extract visitor access code from response (for visitor flow)
+      const visitorAccessCode = (response as any).access_code || 
+                                (responseData as any).access_code ||
+                                (session as any)?.visitor_access_code;
+
       if (!session) {
         console.error("[Selfie] No session in get_session response");
         // Fallback: use verify_face response values
@@ -174,6 +179,7 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
           requiresAdditionalGuest: fallbackRequiresAdditional,
           verifiedGuestCount: fallbackVerifiedCount,
           expectedGuestCount: fallbackExpectedCount,
+          visitorAccessCode,
         });
 
         if (fallbackRequiresAdditional) {
@@ -205,7 +211,7 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
         currentStep: session.current_step,
       });
 
-      // Update state with verified data
+      // Update state with verified data (including visitor access code)
       updateData({
         selfieImage: optimizeResult.dataUrl,
         livenessScore,
@@ -217,6 +223,7 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
         verifiedGuestCount: authVerifiedGuestCount,
         expectedGuestCount: authExpectedGuestCount,
         guestIndex: authGuestIndex,
+        visitorAccessCode: visitorAccessCode || (session as any).visitor_access_code,
       });
 
       // ROUTING based on authoritative session state
