@@ -510,11 +510,22 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
               <TableHead className="text-white/80 w-10">
                 <span className="sr-only">Select</span>
               </TableHead>
-              <TableHead className="text-white/80">{t("staff.table.guestName")}</TableHead>
-              <TableHead className="text-white/80">{t("staff.table.roomNumber")}</TableHead>
-              <TableHead className="text-white/80">{t("staff.table.guests")}</TableHead>
+              {flowTypeFilter === "visitors" ? (
+                <>
+                  <TableHead className="text-white/80">{t("staff.table.visitorName")}</TableHead>
+                  <TableHead className="text-white/80">{t("staff.table.visitorPhone")}</TableHead>
+                  <TableHead className="text-white/80">{t("staff.table.visitorReason")}</TableHead>
+                  <TableHead className="text-white/80">Access Code</TableHead>
+                </>
+              ) : (
+                <>
+                  <TableHead className="text-white/80">{t("staff.table.guestName")}</TableHead>
+                  <TableHead className="text-white/80">{t("staff.table.roomNumber")}</TableHead>
+                  <TableHead className="text-white/80">{t("staff.table.guests")}</TableHead>
+                  <TableHead className="text-white/80">TM30</TableHead>
+                </>
+              )}
               <TableHead className="text-white/80">{t("staff.table.status")}</TableHead>
-              <TableHead className="text-white/80">TM30</TableHead>
               <TableHead className="text-white/80">{t("staff.table.score")}</TableHead>
               <TableHead className="text-white/80">{t("staff.table.time")}</TableHead>
               <TableHead className="text-white/80">{t("staff.table.details")}</TableHead>
@@ -524,7 +535,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
           <TableBody>
             {filteredSessions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-white/60 py-8">
+                <TableCell colSpan={flowTypeFilter === "visitors" ? 9 : 9} className="text-center text-white/60 py-8">
                   {t("staff.table.noVerifications")}
                 </TableCell>
               </TableRow>
@@ -532,6 +543,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
               filteredSessions.map((session) => {
                 const id = (session as any).id;
                 const isReady = tm30ReadyMap[id] || getTM30ReadyStatus((session as any).tm30).ready;
+                const isVisitor = (session as any).flow_type === "visitor";
 
                 return (
                   <AnimatePresence key={id}>
@@ -540,23 +552,49 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
                         <Checkbox
                           checked={selectedRows.has(id)}
                           onCheckedChange={(checked) => handleSelectRow(id, checked === true)}
-                          disabled={!isReady}
+                          disabled={!isReady && !isVisitor}
                           className="border-white/30 data-[state=checked]:bg-primary disabled:opacity-30"
                         />
                       </TableCell>
 
-                      <TableCell className="text-white font-medium">
-                        {(session as any).guest_name}
-                        {getGuestVerificationDetails(session)}
-                      </TableCell>
-                      <TableCell className="text-white/80">{(session as any).room_number}</TableCell>
-                      <TableCell>
-                        {getGuestProgressBadge(session) || (
-                          <span className="text-white/40 text-sm">1</span>
-                        )}
-                      </TableCell>
+                      {flowTypeFilter === "visitors" ? (
+                        <>
+                          <TableCell className="text-white font-medium">
+                            {(session as any).visitor_first_name || ""} {(session as any).visitor_last_name || ""}
+                          </TableCell>
+                          <TableCell className="text-white/80">
+                            {(session as any).visitor_phone || "-"}
+                          </TableCell>
+                          <TableCell className="text-white/80 max-w-[200px] truncate">
+                            {(session as any).visitor_reason || "-"}
+                          </TableCell>
+                          <TableCell>
+                            {(session as any).visitor_access_code ? (
+                              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 font-mono">
+                                {(session as any).visitor_access_code}
+                              </Badge>
+                            ) : (
+                              <span className="text-white/40">-</span>
+                            )}
+                          </TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell className="text-white font-medium">
+                            {(session as any).guest_name}
+                            {getGuestVerificationDetails(session)}
+                          </TableCell>
+                          <TableCell className="text-white/80">{(session as any).room_number}</TableCell>
+                          <TableCell>
+                            {getGuestProgressBadge(session) || (
+                              <span className="text-white/40 text-sm">1</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{getTM30StatusBadge(session)}</TableCell>
+                        </>
+                      )}
+
                       <TableCell>{getStatusBadge(session)}</TableCell>
-                      <TableCell>{getTM30StatusBadge(session)}</TableCell>
 
                       <TableCell className="text-white/80">
                         {(session as any).verification_score > 0
