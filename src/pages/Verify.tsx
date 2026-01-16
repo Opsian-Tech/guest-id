@@ -2,15 +2,19 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import WelcomeStep from "@/components/verify/WelcomeStep";
+import VisitorWelcomeStep from "@/components/verify/VisitorWelcomeStep";
 import DocumentStep from "@/components/verify/DocumentStep";
 import SelfieStep from "@/components/verify/SelfieStep";
 import ResultsStep from "@/components/verify/ResultsStep";
+import VisitorResultsStep from "@/components/verify/VisitorResultsStep";
 import ConsentModal from "@/components/verify/ConsentModal";
 import GuestProgressIndicator from "@/components/verify/GuestProgressIndicator";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { api } from "@/lib/api";
+
+export type FlowType = "guest" | "visitor";
 
 export type VerificationData = {
   guestName: string;
@@ -30,6 +34,14 @@ export type VerificationData = {
   verifiedGuestCount?: number;
   guestIndex?: number;
   requiresAdditionalGuest?: boolean;
+  // Flow type
+  flowType?: FlowType;
+  // Visitor-specific fields
+  visitorFirstName?: string;
+  visitorLastName?: string;
+  visitorPhone?: string;
+  visitorReason?: string;
+  visitorAccessCode?: string;
 };
 
 const stepFromBackend = (step?: string) => {
@@ -89,6 +101,14 @@ const Verify = () => {
           verifiedGuestCount: session.verified_guest_count,
           guestIndex: session.guest_index,
           requiresAdditionalGuest: session.requires_additional_guest,
+          // Flow type
+          flowType: (session as any).flow_type || "guest",
+          // Visitor fields
+          visitorFirstName: (session as any).visitor_first_name,
+          visitorLastName: (session as any).visitor_last_name,
+          visitorPhone: (session as any).visitor_phone,
+          visitorReason: (session as any).visitor_reason,
+          visitorAccessCode: (session as any).visitor_access_code,
         });
 
         // Determine consent visibility using BOTH local and backend state (null-safe)
@@ -116,12 +136,13 @@ const Verify = () => {
     setData((prev) => ({ ...prev, ...newData }));
   };
 
-  const handleConsent = (sessionToken: string) => {
+  const handleConsent = (sessionToken: string, flowType?: FlowType) => {
     setShowConsent(false);
     updateData({
       sessionToken,
       consentGiven: true,
       consentTime: new Date().toISOString(),
+      flowType: flowType || "guest",
     });
     navigate(`/verify/${sessionToken}`, { replace: true });
   };
@@ -129,6 +150,8 @@ const Verify = () => {
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center text-white">Loading session…</div>;
   }
+
+  const isVisitorFlow = data.flowType === "visitor";
 
   return (
     <>
@@ -140,17 +163,26 @@ const Verify = () => {
         </div>
 
         <div className="w-full max-w-2xl">
-          {/* Guest progress indicator - only shows for 2+ guests */}
-          <GuestProgressIndicator data={data} />
+          {/* Guest progress indicator - only shows for 2+ guests (not for visitors) */}
+          {!isVisitorFlow && <GuestProgressIndicator data={data} />}
           
           <AnimatePresence mode="wait">
             {step === 1 && (
-              <WelcomeStep
-                data={data}
-                updateData={updateData}
-                onNext={() => setStep(2)}
-                onError={(e) => toast({ title: "Error", description: e.message })}
-              />
+              isVisitorFlow ? (
+                <VisitorWelcomeStep
+                  data={data}
+                  updateData={updateData}
+                  onNext={() => setStep(2)}
+                  onError={(e) => toast({ title: "Error", description: e.message })}
+                />
+              ) : (
+                <WelcomeStep
+                  data={data}
+                  updateData={updateData}
+                  onNext={() => setStep(2)}
+                  onError={(e) => toast({ title: "Error", description: e.message })}
+                />
+              )
             )}
             {step === 2 && (
               <DocumentStep
@@ -179,7 +211,11 @@ const Verify = () => {
               />
             )}
             {step === 4 && (
-              <ResultsStep data={data} onRetry={() => navigate("/verify/new")} onHome={() => navigate("/")} />
+              isVisitorFlow ? (
+                <VisitorResultsStep data={data} onHome={() => navigate("/")} />
+              ) : (
+                <ResultsStep data={data} onRetry={() => navigate("/verify/new")} onHome={() => navigate("/")} />
+              )
             )}
           </AnimatePresence>
         </div>

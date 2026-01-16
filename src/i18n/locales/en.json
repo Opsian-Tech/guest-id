@@ -17,6 +17,8 @@
     "description": "Fast, secure, and compliant identity verification for hotel check-ins.",
     "startVerification": "Guest Check-In",
     "startDescription": "Start your verification process",
+    "visitorCheckIn": "Visitor Check-In",
+    "visitorDescription": "Get access for 30 minutes",
     "howItWorks": "How It Works",
     "step1Title": "Scan Document",
     "step1Desc": "Capture your ID document using your device camera",
@@ -31,6 +33,26 @@
     "feature2Desc": "Complete verification in under 2 minutes",
     "feature3Title": "AI-Powered",
     "feature3Desc": "Advanced facial recognition and document verification"
+  },
+  "visitor": {
+    "welcomeTitle": "Visitor Check-In",
+    "welcomeSubtitle": "Please provide your details for building access",
+    "firstName": "First Name",
+    "firstNamePlaceholder": "Enter your first name",
+    "lastName": "Last Name",
+    "lastNamePlaceholder": "Enter your last name",
+    "phoneNumber": "Phone Number",
+    "phonePlaceholder": "Enter your phone number",
+    "reason": "Reason for Visiting",
+    "reasonPlaceholder": "Please describe the purpose of your visit",
+    "allFieldsRequired": "Please fill in all fields",
+    "accessGranted": "Access Granted",
+    "validFor30Minutes": "Valid for 30 minutes",
+    "accessCode": "Access Code",
+    "visitorDetails": "Visitor Details",
+    "name": "Name",
+    "phone": "Phone",
+    "purpose": "Purpose"
   },
   "verify": {
     "title": "OPSIAN",
@@ -195,7 +217,9 @@
       "noVerifications": "No verifications found",
       "exportCSV": "Export CSV",
       "exportPDF": "Export PDF",
-      "showAll": "Show All",
+      "showAll": "All",
+      "guests": "Guests",
+      "visitors": "Visitors",
       "verifiedOnly": "Verified Only",
       "failedOnly": "Failed Only",
       "pendingOnly": "Pending Only",
@@ -206,7 +230,10 @@
       "documentStatus": "Doc",
       "selfieStatus": "Selfie",
       "guestsProgress": "{{verified}}/{{total}}",
-      "guestLabel": "Guest {{index}}"
+      "guestLabel": "Guest {{index}}",
+      "visitorName": "Visitor",
+      "visitorPhone": "Phone",
+      "visitorReason": "Reason"
     }
   },
   "settings": {

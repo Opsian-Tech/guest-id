@@ -145,6 +145,14 @@ export interface SessionRow {
   is_verified: boolean;
   verification_score: number;
   created_at: string;
+  // Flow type
+  flow_type?: "guest" | "visitor";
+  // Visitor-specific fields
+  visitor_first_name?: string;
+  visitor_last_name?: string;
+  visitor_phone?: string;
+  visitor_reason?: string;
+  visitor_access_code?: string;
   // Extracted info from Textract
   extracted_info?: {
     text?: string;
