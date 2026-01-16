@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   FileJson,
   FileSpreadsheet,
+  Users,
+  User,
 } from "lucide-react";
 import { exportToCSV, exportToPDF } from "@/lib/exportUtils";
 import { exportTM30ToCSV, exportTM30ToJSON } from "@/lib/tm30ExportUtils";
@@ -34,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import TM30DetailsDrawer from "./TM30DetailsDrawer";
 
 type FilterStatus = "all" | "verified" | "failed" | "pending";
+type FlowTypeFilter = "all" | "guests" | "visitors";
 
 interface VerificationsTableStaffProps {
   sessions: SessionRow[];
@@ -143,6 +146,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
   const { toast } = useToast();
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [flowTypeFilter, setFlowTypeFilter] = useState<FlowTypeFilter>("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
@@ -273,14 +277,27 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
   };
 
   const filteredSessions = extendedSessions.filter((session) => {
+    // Flow type filter
+    const sessionFlowType = (session as any).flow_type || "guest";
+    const flowTypeMatch = 
+      flowTypeFilter === "all" || 
+      (flowTypeFilter === "guests" && sessionFlowType === "guest") ||
+      (flowTypeFilter === "visitors" && sessionFlowType === "visitor");
+    
+    if (!flowTypeMatch) return false;
+    
+    // Status filter
     const statusMatch = filterStatus === "all" || getStatus(session) === filterStatus;
-    if (!selectedDate) return statusMatch;
+    if (!statusMatch) return false;
+    
+    // Date filter
+    if (!selectedDate) return true;
     const sessionDate = new Date((session as any).created_at);
     const dateMatch =
       sessionDate.getDate() === selectedDate.getDate() &&
       sessionDate.getMonth() === selectedDate.getMonth() &&
       sessionDate.getFullYear() === selectedDate.getFullYear();
-    return statusMatch && dateMatch;
+    return dateMatch;
   });
 
   const readySessions = filteredSessions.filter((s) => {
@@ -342,6 +359,36 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6">
+      {/* Flow Type Tabs */}
+      <div className="flex gap-2 mb-6">
+        <Button
+          variant={flowTypeFilter === "all" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setFlowTypeFilter("all")}
+          className={flowTypeFilter === "all" ? "bg-white text-gray-900" : "glass border-white/20 text-white hover:bg-white/20"}
+        >
+          {t("staff.table.showAll")}
+        </Button>
+        <Button
+          variant={flowTypeFilter === "guests" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setFlowTypeFilter("guests")}
+          className={flowTypeFilter === "guests" ? "bg-white text-gray-900" : "glass border-white/20 text-white hover:bg-white/20"}
+        >
+          <User className="w-4 h-4 mr-2" />
+          {t("staff.table.guests")}
+        </Button>
+        <Button
+          variant={flowTypeFilter === "visitors" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setFlowTypeFilter("visitors")}
+          className={flowTypeFilter === "visitors" ? "bg-white text-gray-900" : "glass border-white/20 text-white hover:bg-white/20"}
+        >
+          <Users className="w-4 h-4 mr-2" />
+          {t("staff.table.visitors")}
+        </Button>
+      </div>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h2 className="text-2xl text-white font-poppins font-thin">{t("staff.todayVerifications")}</h2>
 
