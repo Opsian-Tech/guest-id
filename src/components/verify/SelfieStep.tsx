@@ -86,14 +86,14 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
 
       console.log("[Selfie] Sending verification request...");
 
-      // Include guest_index in request if available
-      const response = await api.verify({
-        action: "verify_face",
+      const verifyPayload = {
+        action: "verify_face" as const,
         session_token: data.sessionToken,
         selfie_data: cleanBase64,
-        image_data: cleanBase64,
-        guest_index: data.guestIndex,
-      });
+        ...(typeof data.guestIndex === "number" ? { guest_index: data.guestIndex } : {}),
+      };
+
+      const response = await api.verify(verifyPayload);
 
       console.log("[Selfie] Raw verify_face response:", JSON.stringify(response, null, 2));
 

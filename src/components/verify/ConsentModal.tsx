@@ -62,7 +62,7 @@ const ConsentModal = ({ flowType = "guest", existingSessionToken, onConsent, onC
       } else {
         // STEP 1 — create session (MUST succeed)
         console.log("[Consent] Starting NEW session with flowType:", flowType);
-        const startRes = await api.verify({ action: "start", flow_type: flowType } as any);
+        const startRes = await api.verify({ action: "start", flow_type: flowType });
         console.log("[Consent] start response:", startRes);
 
         sessionToken = startRes.session_token;

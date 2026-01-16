@@ -68,22 +68,21 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
 
       console.log("[Document] Sending upload request...");
 
-      // Include guest_index, flow_type, and visitor fields in request
-      const response = await api.verify({
-        action: "upload_document",
+      const resolvedGuestName = (
+        data.guestName || `${data.visitorFirstName || ""} ${data.visitorLastName || ""}`.trim()
+      ).trim();
+
+      const uploadPayload = {
+        action: "upload_document" as const,
         session_token: data.sessionToken,
         image_data: cleanBase64,
         document_type: "passport",
-        guest_name: data.guestName || `${data.visitorFirstName || ""} ${data.visitorLastName || ""}`.trim(),
-        room_number: data.roomNumber,
-        guest_index: data.guestIndex,
-        flow_type: data.flowType, // Pass flow_type so backend knows visitor vs guest
-        // Visitor-specific fields
-        visitor_first_name: data.visitorFirstName,
-        visitor_last_name: data.visitorLastName,
-        visitor_phone: data.visitorPhone,
-        visitor_reason: data.visitorReason,
-      } as any);
+        ...(resolvedGuestName ? { guest_name: resolvedGuestName } : {}),
+        ...(data.roomNumber ? { room_number: data.roomNumber } : {}),
+        ...(typeof data.guestIndex === "number" ? { guest_index: data.guestIndex } : {}),
+      };
+
+      const response = await api.verify(uploadPayload);
 
       if (response.success) {
         console.log("[Document] Upload successful");
