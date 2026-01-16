@@ -53,37 +53,48 @@ const ConsentModal = ({ flowType = "guest", onConsent, onCancel }: ConsentModalP
 
     try {
       // STEP 1 — create session (MUST succeed)
+      console.log("[Consent] Starting session with flowType:", flowType);
       const startRes = await api.verify({ action: "start", flow_type: flowType } as any);
+      console.log("[Consent] start response:", startRes);
+
       const sessionToken = startRes.session_token;
 
-      if (!sessionToken) throw new Error("No session token returned from server");
+      if (!sessionToken) {
+        console.error("[Consent] No session token in response:", startRes);
+        throw new Error("No session token returned from server");
+      }
 
-      console.log("[Consent] session created:", sessionToken, "flowType:", flowType);
+      console.log("[Consent] Session created successfully:", sessionToken, "flowType:", flowType);
 
-      // STEP 2 — log consent (NON-BLOCKING)
-      api
-        .verify({
+      // STEP 2 — log consent and wait for it (blocking to ensure DB sync)
+      try {
+        console.log("[Consent] Logging consent for session:", sessionToken);
+        await api.verify({
           action: "log_consent",
           session_token: sessionToken,
           consent_given: true,
           consent_time: new Date().toISOString(),
           consent_locale: "en-th",
-        })
-        .catch(() => {
-          toast({
-            title: "Notice",
-            description: "Consent will be synced shortly.",
-          });
-          logConsentWithRetry(sessionToken);
         });
+        console.log("[Consent] Consent logged successfully");
+      } catch (consentErr) {
+        console.warn("[Consent] log_consent failed, will retry in background:", consentErr);
+        // Non-blocking retry
+        logConsentWithRetry(sessionToken);
+      }
 
-      // STEP 3 — hand token upward (routing handled by Verify.tsx)
+      // STEP 3 — Small delay to ensure DB write is propagated
+      console.log("[Consent] Waiting 500ms for DB sync...");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // STEP 4 — hand token upward (routing handled by Verify.tsx)
+      console.log("[Consent] Passing session token to parent:", sessionToken);
       onConsent(sessionToken);
     } catch (err: any) {
       console.error("[Consent] failed to start session:", err);
       toast({
         title: "Error",
-        description: err?.message || "Failed to start verification",
+        description: err?.message || "Failed to start verification. Please check your connection and try again.",
         variant: "destructive",
       });
     } finally {
