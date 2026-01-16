@@ -10,13 +10,14 @@ import { api } from "@/lib/api";
 
 interface ConsentModalProps {
   flowType?: "guest" | "visitor";
+  existingSessionToken?: string;
   onConsent: (sessionToken: string) => void;
   onCancel: () => void;
 }
 
 const RETRY_DELAYS = [1000, 3000, 5000];
 
-const ConsentModal = ({ flowType = "guest", onConsent, onCancel }: ConsentModalProps) => {
+const ConsentModal = ({ flowType = "guest", existingSessionToken, onConsent, onCancel }: ConsentModalProps) => {
   const [isChecked, setIsChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const retryAbortRef = useRef(false);
@@ -52,19 +53,27 @@ const ConsentModal = ({ flowType = "guest", onConsent, onCancel }: ConsentModalP
     retryAbortRef.current = false;
 
     try {
-      // STEP 1 — create session (MUST succeed)
-      console.log("[Consent] Starting session with flowType:", flowType);
-      const startRes = await api.verify({ action: "start", flow_type: flowType } as any);
-      console.log("[Consent] start response:", startRes);
+      let sessionToken: string;
 
-      const sessionToken = startRes.session_token;
+      // If we have an existing session token, reuse it instead of creating new
+      if (existingSessionToken) {
+        console.log("[Consent] Using existing session:", existingSessionToken);
+        sessionToken = existingSessionToken;
+      } else {
+        // STEP 1 — create session (MUST succeed)
+        console.log("[Consent] Starting NEW session with flowType:", flowType);
+        const startRes = await api.verify({ action: "start", flow_type: flowType } as any);
+        console.log("[Consent] start response:", startRes);
 
-      if (!sessionToken) {
-        console.error("[Consent] No session token in response:", startRes);
-        throw new Error("No session token returned from server");
+        sessionToken = startRes.session_token;
+
+        if (!sessionToken) {
+          console.error("[Consent] No session token in response:", startRes);
+          throw new Error("No session token returned from server");
+        }
+
+        console.log("[Consent] Session created successfully:", sessionToken, "flowType:", flowType);
       }
-
-      console.log("[Consent] Session created successfully:", sessionToken, "flowType:", flowType);
 
       // STEP 2 — log consent and wait for it (blocking to ensure DB sync)
       try {
