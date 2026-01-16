@@ -24,6 +24,12 @@ const Landing = () => {
 
       const token = response.session_token || response.verify_url?.split("/").pop();
       if (token) {
+        // Store flow type in sessionStorage as fallback
+        try {
+          sessionStorage.setItem(`verify_flow_${token}`, flowType);
+        } catch {
+          // Ignore storage errors
+        }
         navigate(`/verify/${token}?flow=${flowType}`);
       } else {
         throw new Error("No session token received");
