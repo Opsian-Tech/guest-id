@@ -263,7 +263,7 @@ const Verify = () => {
               <DocumentStep
                 data={data}
                 updateData={updateData}
-                onNext={() => setStep(3)}
+                onNext={() => setStep(isVisitorFlow ? 4 : 3)}
                 onBack={() => setStep(1)}
                 onError={(e) => toast({ title: "Error", description: e.message })}
               />
