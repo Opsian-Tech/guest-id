@@ -12,6 +12,7 @@ export type VerifyAction = "start" | "log_consent" | "update_guest" | "get_sessi
 
 export interface StartSessionRequest {
   action: "start";
+  flow_type?: "guest" | "visitor";
 }
 
 export interface LogConsentRequest {
