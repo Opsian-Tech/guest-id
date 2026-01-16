@@ -8,6 +8,7 @@ import { VerificationData } from "@/pages/Verify";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
+import { z } from "zod";
 
 type Props = {
   data: VerificationData;
@@ -15,6 +16,31 @@ type Props = {
   onNext: () => void;
   onError: (error: Error) => void;
 };
+
+// Zod schema for visitor form validation
+const visitorSchema = z.object({
+  firstName: z
+    .string()
+    .trim()
+    .min(1, "First name is required")
+    .max(50, "First name must be less than 50 characters"),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, "Last name is required")
+    .max(50, "Last name must be less than 50 characters"),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Phone number is required")
+    .max(20, "Phone number must be less than 20 characters")
+    .regex(/^[+]?[\d\s\-()]+$/, "Please enter a valid phone number"),
+  reason: z
+    .string()
+    .trim()
+    .min(1, "Reason for visit is required")
+    .max(500, "Reason must be less than 500 characters"),
+});
 
 const VisitorWelcomeStep = ({ data, updateData, onNext, onError }: Props) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -24,15 +50,26 @@ const VisitorWelcomeStep = ({ data, updateData, onNext, onError }: Props) => {
   const [lastName, setLastName] = useState(data.visitorLastName || "");
   const [phone, setPhone] = useState(data.visitorPhone || "");
   const [reason, setReason] = useState(data.visitorReason || "");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
 
-    // Basic validation
-    if (!firstName || !lastName || !phone || !reason) {
+    // Validate with zod
+    const result = visitorSchema.safeParse({ firstName, lastName, phone, reason });
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        errors[field] = err.message;
+      });
+      setFieldErrors(errors);
+
       toast({
         title: t("common.error"),
-        description: t("visitor.allFieldsRequired"),
+        description: Object.values(errors)[0],
         variant: "destructive",
       });
       return;
@@ -55,18 +92,18 @@ const VisitorWelcomeStep = ({ data, updateData, onNext, onError }: Props) => {
         action: "update_guest",
         session_token: data.sessionToken,
         flow_type: "visitor",
-        visitor_first_name: firstName,
-        visitor_last_name: lastName,
-        visitor_phone: phone,
-        visitor_reason: reason,
+        visitor_first_name: result.data.firstName,
+        visitor_last_name: result.data.lastName,
+        visitor_phone: result.data.phone,
+        visitor_reason: result.data.reason,
       } as any);
 
       // Update local state
       updateData({
-        visitorFirstName: firstName,
-        visitorLastName: lastName,
-        visitorPhone: phone,
-        visitorReason: reason,
+        visitorFirstName: result.data.firstName,
+        visitorLastName: result.data.lastName,
+        visitorPhone: result.data.phone,
+        visitorReason: result.data.reason,
       });
 
       // Move forward
@@ -113,10 +150,15 @@ const VisitorWelcomeStep = ({ data, updateData, onNext, onError }: Props) => {
               placeholder={t("visitor.firstNamePlaceholder")}
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              className="h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/50"
+              className={`h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/50 ${
+                fieldErrors.firstName ? "border-red-400" : ""
+              }`}
               required
               disabled={isLoading}
             />
+            {fieldErrors.firstName && (
+              <p className="text-red-400 text-sm">{fieldErrors.firstName}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -129,10 +171,15 @@ const VisitorWelcomeStep = ({ data, updateData, onNext, onError }: Props) => {
               placeholder={t("visitor.lastNamePlaceholder")}
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className="h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/50"
+              className={`h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/50 ${
+                fieldErrors.lastName ? "border-red-400" : ""
+              }`}
               required
               disabled={isLoading}
             />
+            {fieldErrors.lastName && (
+              <p className="text-red-400 text-sm">{fieldErrors.lastName}</p>
+            )}
           </div>
         </div>
 
@@ -146,10 +193,15 @@ const VisitorWelcomeStep = ({ data, updateData, onNext, onError }: Props) => {
             placeholder={t("visitor.phonePlaceholder")}
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/50"
+            className={`h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/50 ${
+              fieldErrors.phone ? "border-red-400" : ""
+            }`}
             required
             disabled={isLoading}
           />
+          {fieldErrors.phone && (
+            <p className="text-red-400 text-sm">{fieldErrors.phone}</p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -161,10 +213,15 @@ const VisitorWelcomeStep = ({ data, updateData, onNext, onError }: Props) => {
             placeholder={t("visitor.reasonPlaceholder")}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="min-h-[100px] text-lg bg-white/10 border-white/20 text-white placeholder:text-white/50 resize-none"
+            className={`min-h-[100px] text-lg bg-white/10 border-white/20 text-white placeholder:text-white/50 resize-none ${
+              fieldErrors.reason ? "border-red-400" : ""
+            }`}
             required
             disabled={isLoading}
           />
+          {fieldErrors.reason && (
+            <p className="text-red-400 text-sm">{fieldErrors.reason}</p>
+          )}
         </div>
 
         <Button type="submit" disabled={isLoading} variant="glass" className="w-full h-14 text-lg font-bold">
