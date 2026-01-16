@@ -24,7 +24,7 @@ const Landing = () => {
 
       const token = response.session_token || response.verify_url?.split("/").pop();
       if (token) {
-        navigate(`/verify/${token}`);
+        navigate(`/verify/${token}?flow=${flowType}`);
       } else {
         throw new Error("No session token received");
       }

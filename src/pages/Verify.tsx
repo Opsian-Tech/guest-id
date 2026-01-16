@@ -92,7 +92,12 @@ const Verify = () => {
         console.log("[Verify] get_session success:", res);
 
         const session = res.session;
-        const flowType: FlowType = (session as any).flow_type === "visitor" ? "visitor" : "guest";
+        // Get flow from URL as fallback if backend doesn't return it
+        const params = new URLSearchParams(window.location.search);
+        const urlFlow = params.get("flow");
+        const flowType: FlowType = 
+          (session as any).flow_type === "visitor" ? "visitor" :
+          urlFlow === "visitor" ? "visitor" : "guest";
 
         setData({
           guestName: session.guest_name || "",
