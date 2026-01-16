@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import WelcomeStep from "@/components/verify/WelcomeStep";
 import VisitorWelcomeStep from "@/components/verify/VisitorWelcomeStep";
 import DocumentStep from "@/components/verify/DocumentStep";
@@ -18,7 +18,7 @@ export type FlowType = "guest" | "visitor";
 
 export type VerificationData = {
   guestName: string;
-  roomNumber: string;
+  roomNumber?: string;
   sessionToken?: string;
   verificationScore?: number;
   isVerified?: boolean;
@@ -28,15 +28,15 @@ export type VerificationData = {
   selfieImage?: string;
   livenessScore?: number;
   faceMatchScore?: number;
-  // Multi-guest verification fields
+
   guestVerified?: boolean;
   expectedGuestCount?: number;
   verifiedGuestCount?: number;
   guestIndex?: number;
   requiresAdditionalGuest?: boolean;
-  // Flow type
+
   flowType?: FlowType;
-  // Visitor-specific fields
+
   visitorFirstName?: string;
   visitorLastName?: string;
   visitorPhone?: string;
@@ -66,15 +66,19 @@ const Verify = () => {
   const [step, setStep] = useState(1);
   const [showConsent, setShowConsent] = useState(false);
 
+  const [pendingFlowType, setPendingFlowType] = useState<FlowType>("guest");
+
   const [data, setData] = useState<VerificationData>({
     guestName: "",
     roomNumber: "",
   });
 
-  // 🔁 RESUME SESSION ON LOAD / REFRESH
   useEffect(() => {
     const loadSession = async () => {
       if (!token || token === "new") {
+        const params = new URLSearchParams(window.location.search);
+        const flow = params.get("flow") === "visitor" ? "visitor" : "guest";
+        setPendingFlowType(flow);
         setShowConsent(true);
         setIsLoading(false);
         return;
@@ -84,26 +88,30 @@ const Verify = () => {
         const res = await api.verify({
           action: "get_session",
           session_token: token,
-        });
+        } as any);
 
         const session = res.session;
+
+        const flowType: FlowType = (session as any).flow_type === "visitor" ? "visitor" : "guest";
 
         setData({
           guestName: session.guest_name || "",
           roomNumber: session.room_number || "",
           sessionToken: session.session_token,
+
           consentGiven: session.consent_given,
           consentTime: session.consent_time,
+
           isVerified: session.is_verified,
           verificationScore: session.verification_score,
-          // Multi-guest fields from session resume
+
           expectedGuestCount: session.expected_guest_count,
           verifiedGuestCount: session.verified_guest_count,
           guestIndex: session.guest_index,
           requiresAdditionalGuest: session.requires_additional_guest,
-          // Flow type
-          flowType: (session as any).flow_type || "guest",
-          // Visitor fields
+
+          flowType,
+
           visitorFirstName: (session as any).visitor_first_name,
           visitorLastName: (session as any).visitor_last_name,
           visitorPhone: (session as any).visitor_phone,
@@ -111,11 +119,7 @@ const Verify = () => {
           visitorAccessCode: (session as any).visitor_access_code,
         });
 
-        // Determine consent visibility using BOTH local and backend state (null-safe)
-        const localConsent = data.consentGiven === true;
-        const backendConsent = session.consent_given === true;
-        setShowConsent(!(localConsent || backendConsent));
-        
+        setShowConsent(session.consent_given !== true);
         setStep(stepFromBackend(session.current_step));
       } catch {
         toast({
@@ -137,14 +141,17 @@ const Verify = () => {
   };
 
   const handleConsent = (sessionToken: string, flowType?: FlowType) => {
+    const finalFlow: FlowType = flowType === "visitor" ? "visitor" : "guest";
+
     setShowConsent(false);
     updateData({
       sessionToken,
       consentGiven: true,
       consentTime: new Date().toISOString(),
-      flowType: flowType || "guest",
+      flowType: finalFlow,
     });
-    navigate(`/verify/${sessionToken}`, { replace: true });
+
+    navigate(`/verify/${sessionToken}?flow=${finalFlow}`, { replace: true });
   };
 
   if (isLoading) {
@@ -155,7 +162,13 @@ const Verify = () => {
 
   return (
     <>
-      {showConsent && <ConsentModal onConsent={handleConsent} onCancel={() => navigate("/")} />}
+      {showConsent && (
+        <ConsentModal
+          flowType={pendingFlowType}
+          onConsent={(sessionToken) => handleConsent(sessionToken, pendingFlowType)}
+          onCancel={() => navigate("/")}
+        />
+      )}
 
       <div className="min-h-screen flex items-center justify-center p-4 pb-20">
         <div className="absolute top-4 right-4 z-50">
@@ -163,12 +176,11 @@ const Verify = () => {
         </div>
 
         <div className="w-full max-w-2xl">
-          {/* Guest progress indicator - only shows for 2+ guests (not for visitors) */}
           {!isVisitorFlow && <GuestProgressIndicator data={data} />}
-          
+
           <AnimatePresence mode="wait">
-            {step === 1 && (
-              isVisitorFlow ? (
+            {step === 1 &&
+              (isVisitorFlow ? (
                 <VisitorWelcomeStep
                   data={data}
                   updateData={updateData}
@@ -182,8 +194,8 @@ const Verify = () => {
                   onNext={() => setStep(2)}
                   onError={(e) => toast({ title: "Error", description: e.message })}
                 />
-              )
-            )}
+              ))}
+
             {step === 2 && (
               <DocumentStep
                 data={data}
@@ -193,13 +205,13 @@ const Verify = () => {
                 onError={(e) => toast({ title: "Error", description: e.message })}
               />
             )}
+
             {step === 3 && (
               <SelfieStep
                 data={data}
                 updateData={updateData}
                 onNext={() => setStep(4)}
                 onNextGuest={() => {
-                  // Clear per-guest images for next guest
                   updateData({
                     documentImage: undefined,
                     selfieImage: undefined,
@@ -210,13 +222,17 @@ const Verify = () => {
                 onError={(e) => toast({ title: "Error", description: e.message })}
               />
             )}
-            {step === 4 && (
-              isVisitorFlow ? (
+
+            {step === 4 &&
+              (isVisitorFlow ? (
                 <VisitorResultsStep data={data} onHome={() => navigate("/")} />
               ) : (
-                <ResultsStep data={data} onRetry={() => navigate("/verify/new")} onHome={() => navigate("/")} />
-              )
-            )}
+                <ResultsStep
+                  data={data}
+                  onRetry={() => navigate("/verify/new?flow=guest")}
+                  onHome={() => navigate("/")}
+                />
+              ))}
           </AnimatePresence>
         </div>
       </div>
