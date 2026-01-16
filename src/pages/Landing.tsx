@@ -139,25 +139,26 @@ const Landing = () => {
         </motion.div>
 
         {/* Security Text */}
-        <motion.div initial={{
-        opacity: 0,
-        y: 20
-      }} animate={{
-        opacity: 1,
-        y: 0
-      }} transition={{
-        duration: 0.6,
-        delay: 0.3
-      }} className="text-center mb-20">
+        <motion.div
+          initial={{
+            opacity: 0,
+            y: 20,
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          transition={{
+            duration: 0.6,
+            delay: 0.3,
+          }}
+          className="text-center mb-20"
+        >
           <div className="flex items-center justify-center gap-2 mb-2">
             <Lock className="w-4 h-4 text-white/60" />
-            <p className="text-sm text-white/60">
-              {t('landing.description')}
-            </p>
+            <p className="text-sm text-white/60">{t("landing.description")}</p>
           </div>
-          <p className="text-xs text-white/40">
-            Powered by Opsian
-          </p>
+          <p className="text-xs text-white/40">Powered by Opsian</p>
         </motion.div>
       </div>
 
