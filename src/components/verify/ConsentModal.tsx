@@ -9,13 +9,14 @@ import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 
 interface ConsentModalProps {
+  flowType?: "guest" | "visitor";
   onConsent: (sessionToken: string) => void;
   onCancel: () => void;
 }
 
 const RETRY_DELAYS = [1000, 3000, 5000];
 
-const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
+const ConsentModal = ({ flowType = "guest", onConsent, onCancel }: ConsentModalProps) => {
   const [isChecked, setIsChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const retryAbortRef = useRef(false);
@@ -52,14 +53,12 @@ const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
 
     try {
       // STEP 1 — create session (MUST succeed)
-      const startRes = await api.verify({ action: "start" });
+      const startRes = await api.verify({ action: "start", flow_type: flowType } as any);
       const sessionToken = startRes.session_token;
 
-      if (!sessionToken) {
-        throw new Error("No session token returned from server");
-      }
+      if (!sessionToken) throw new Error("No session token returned from server");
 
-      console.log("[Consent] session created:", sessionToken);
+      console.log("[Consent] session created:", sessionToken, "flowType:", flowType);
 
       // STEP 2 — log consent (NON-BLOCKING)
       api
@@ -82,7 +81,6 @@ const ConsentModal = ({ onConsent, onCancel }: ConsentModalProps) => {
       onConsent(sessionToken);
     } catch (err: any) {
       console.error("[Consent] failed to start session:", err);
-
       toast({
         title: "Error",
         description: err?.message || "Failed to start verification",
