@@ -227,6 +227,7 @@ const Verify = () => {
       {showConsent && (
         <ConsentModal
           flowType={pendingFlowType}
+          existingSessionToken={token !== "new" ? token : undefined}
           onConsent={(sessionToken) => handleConsent(sessionToken, pendingFlowType)}
           onCancel={() => navigate("/")}
         />
