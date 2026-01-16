@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import WelcomeStep from "@/components/verify/WelcomeStep";
@@ -13,6 +13,10 @@ import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { api } from "@/lib/api";
+
+const RETRY_DELAYS = [500, 1500, 3000];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export type FlowType = "guest" | "visitor";
 
@@ -73,45 +77,36 @@ const Verify = () => {
     roomNumber: "",
   });
 
-  useEffect(() => {
-    const loadSession = async () => {
-      if (!token || token === "new") {
-        const params = new URLSearchParams(window.location.search);
-        const flow = params.get("flow") === "visitor" ? "visitor" : "guest";
-        setPendingFlowType(flow);
-        setShowConsent(true);
-        setIsLoading(false);
-        return;
-      }
+  const hasLoadedRef = useRef(false);
+
+  const fetchSessionWithRetry = useCallback(
+    async (sessionToken: string, attempt = 0): Promise<boolean> => {
+      console.log(`[Verify] get_session attempt ${attempt + 1} for token: ${sessionToken}`);
 
       try {
         const res = await api.verify({
           action: "get_session",
-          session_token: token,
+          session_token: sessionToken,
         } as any);
 
-        const session = res.session;
+        console.log("[Verify] get_session success:", res);
 
+        const session = res.session;
         const flowType: FlowType = (session as any).flow_type === "visitor" ? "visitor" : "guest";
 
         setData({
           guestName: session.guest_name || "",
           roomNumber: session.room_number || "",
           sessionToken: session.session_token,
-
           consentGiven: session.consent_given,
           consentTime: session.consent_time,
-
           isVerified: session.is_verified,
           verificationScore: session.verification_score,
-
           expectedGuestCount: session.expected_guest_count,
           verifiedGuestCount: session.verified_guest_count,
           guestIndex: session.guest_index,
           requiresAdditionalGuest: session.requires_additional_guest,
-
           flowType,
-
           visitorFirstName: (session as any).visitor_first_name,
           visitorLastName: (session as any).visitor_last_name,
           visitorPhone: (session as any).visitor_phone,
@@ -121,20 +116,60 @@ const Verify = () => {
 
         setShowConsent(session.consent_given !== true);
         setStep(stepFromBackend(session.current_step));
-      } catch {
+        return true;
+      } catch (err: any) {
+        console.error(`[Verify] get_session attempt ${attempt + 1} failed:`, err?.message || err);
+
+        if (attempt < RETRY_DELAYS.length) {
+          const delay = RETRY_DELAYS[attempt];
+          console.log(`[Verify] Retrying in ${delay}ms...`);
+          await sleep(delay);
+          return fetchSessionWithRetry(sessionToken, attempt + 1);
+        }
+
+        return false;
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
+    const loadSession = async () => {
+      if (!token || token === "new") {
+        const params = new URLSearchParams(window.location.search);
+        const flow = params.get("flow") === "visitor" ? "visitor" : "guest";
+        console.log("[Verify] New session flow, showing consent for:", flow);
+        setPendingFlowType(flow);
+        setShowConsent(true);
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("[Verify] Loading existing session:", token);
+
+      // Small initial delay to allow DB write to propagate
+      await sleep(300);
+
+      const success = await fetchSessionWithRetry(token);
+
+      if (!success) {
+        console.error("[Verify] All retries failed for token:", token);
         toast({
-          title: "Session expired",
-          description: "Please restart verification.",
+          title: "Session not found",
+          description: "The session may have expired or failed to create. Please try again.",
           variant: "destructive",
         });
         navigate("/");
-      } finally {
-        setIsLoading(false);
       }
+
+      setIsLoading(false);
     };
 
     loadSession();
-  }, [token, navigate, toast]);
+  }, [token, navigate, toast, fetchSessionWithRetry]);
 
   const updateData = (newData: Partial<VerificationData>) => {
     setData((prev) => ({ ...prev, ...newData }));
