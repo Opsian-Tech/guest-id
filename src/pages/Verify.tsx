@@ -92,12 +92,24 @@ const Verify = () => {
         console.log("[Verify] get_session success:", res);
 
         const session = res.session;
-        // Get flow from URL as fallback if backend doesn't return it
+        // Prefer backend flow_type, then URL param, then a frontend stored fallback
         const params = new URLSearchParams(window.location.search);
         const urlFlow = params.get("flow");
-        const flowType: FlowType = 
-          (session as any).flow_type === "visitor" ? "visitor" :
-          urlFlow === "visitor" ? "visitor" : "guest";
+        let storedFlow: string | null = null;
+        try {
+          storedFlow = sessionStorage.getItem(`verify_flow_${sessionToken}`);
+        } catch {
+          // ignore storage errors
+        }
+
+        const flowType: FlowType =
+          (session as any).flow_type === "visitor"
+            ? "visitor"
+            : urlFlow === "visitor"
+              ? "visitor"
+              : storedFlow === "visitor"
+                ? "visitor"
+                : "guest";
 
         setData({
           guestName: session.guest_name || "",
@@ -118,6 +130,10 @@ const Verify = () => {
           visitorReason: (session as any).visitor_reason,
           visitorAccessCode: (session as any).visitor_access_code,
         });
+
+        // Important: if consent modal is shown for an existing session,
+        // we must keep the flow type in sync so "Visitor" doesn't become "Guest".
+        setPendingFlowType(flowType);
 
         setShowConsent(session.consent_given !== true);
         setStep(stepFromBackend(session.current_step));
@@ -190,6 +206,12 @@ const Verify = () => {
       consentTime: new Date().toISOString(),
       flowType: finalFlow,
     });
+
+    try {
+      sessionStorage.setItem(`verify_flow_${sessionToken}`, finalFlow);
+    } catch {
+      // ignore storage errors
+    }
 
     navigate(`/verify/${sessionToken}?flow=${finalFlow}`, { replace: true });
   };
