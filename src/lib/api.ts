@@ -262,7 +262,24 @@ class ApiService {
 
   /* ---------- ADMIN ---------- */
   async getAdminStats(): Promise<AdminStats> {
-    return this.fetchApi<AdminStats>("/api/admin/stats");
+    const raw = await this.fetchApi<{
+      total_verifications: number;
+      successful_verifications: number;
+      total_cost_usd: number;
+    }>("/api/admin/stats");
+    
+    const totalVerifications = raw.total_verifications ?? 0;
+    const successfulVerifications = raw.successful_verifications ?? 0;
+    const successRate = totalVerifications > 0 
+      ? Math.round((successfulVerifications / totalVerifications) * 100) 
+      : 0;
+    
+    return {
+      totalVerifications,
+      successfulVerifications,
+      successRate,
+      totalCost: raw.total_cost_usd ?? 0,
+    };
   }
 
   async getAdminSessions(): Promise<SessionRow[]> {
