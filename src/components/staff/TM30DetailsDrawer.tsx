@@ -33,9 +33,10 @@ interface TM30DetailsDrawerProps {
   session: ExtendedSessionRow;
   onSave: (sessionId: string, tm30Data: TM30Data) => void;
   onMarkReady: (sessionId: string) => void;
+  isVisitor?: boolean;
 }
 
-const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerProps) => {
+const TM30DetailsDrawer = ({ session, onSave, onMarkReady, isVisitor = false }: TM30DetailsDrawerProps) => {
   const { toast } = useToast();
   const [showMrz, setShowMrz] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -176,68 +177,74 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <h3 className="text-lg font-medium text-gray-900">TM30 Details</h3>
-            <Badge
-              className={
-                ready
-                  ? "bg-green-500/20 text-green-300 border-green-500/30"
-                  : "bg-amber-500/20 text-amber-300 border-amber-500/30"
-              }
-            >
-              {ready ? (
-                <>
-                  <CheckCircle2 className="w-3 h-3 mr-1" /> TM30 Ready
-                </>
-              ) : (
-                <>TM30 Missing Fields ({missingFields.length})</>
-              )}
-            </Badge>
+            <h3 className="text-lg font-medium text-gray-900">
+              {isVisitor ? "Details" : "TM30 Details"}
+            </h3>
+            {!isVisitor && (
+              <Badge
+                className={
+                  ready
+                    ? "bg-green-500/20 text-green-300 border-green-500/30"
+                    : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                }
+              >
+                {ready ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3 mr-1" /> TM30 Ready
+                  </>
+                ) : (
+                  <>TM30 Missing Fields ({missingFields.length})</>
+                )}
+              </Badge>
+            )}
           </div>
 
-          {/* Export dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-100">
-                <Download className="w-4 h-4 mr-2" />
-                Export TM30
-                <ChevronDown className="w-4 h-4 ml-2" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-white border-gray-200">
-              <DropdownMenuItem
-                onClick={() => handleExport("csv")}
-                className="text-gray-700 hover:bg-gray-100 cursor-pointer"
-              >
-                <FileSpreadsheet className="w-4 h-4 mr-2" /> CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleExport("json")}
-                className="text-gray-700 hover:bg-gray-100 cursor-pointer"
-              >
-                <FileJson className="w-4 h-4 mr-2" /> JSON
-              </DropdownMenuItem>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuItem
-                      onClick={() => handleExport("pdf")}
-                      className="text-gray-400 cursor-not-allowed"
-                      disabled
-                    >
-                      <FileText className="w-4 h-4 mr-2" /> PDF
-                    </DropdownMenuItem>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>PDF export will be enabled once server endpoint is connected</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Export dropdown - only for guests */}
+          {!isVisitor && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-100">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export TM30
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-white border-gray-200">
+                <DropdownMenuItem
+                  onClick={() => handleExport("csv")}
+                  className="text-gray-700 hover:bg-gray-100 cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-4 h-4 mr-2" /> CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleExport("json")}
+                  className="text-gray-700 hover:bg-gray-100 cursor-pointer"
+                >
+                  <FileJson className="w-4 h-4 mr-2" /> JSON
+                </DropdownMenuItem>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuItem
+                        onClick={() => handleExport("pdf")}
+                        className="text-gray-400 cursor-not-allowed"
+                        disabled
+                      >
+                        <FileText className="w-4 h-4 mr-2" /> PDF
+                      </DropdownMenuItem>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>PDF export will be enabled once server endpoint is connected</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
-        {/* Missing fields summary */}
-        {!ready && (
+        {/* Missing fields summary - only for guests */}
+        {!isVisitor && !ready && (
           <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
             <p className="text-amber-300 text-sm">
               <AlertTriangle className="w-4 h-4 inline mr-2" />
@@ -246,8 +253,8 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
           </div>
         )}
 
-        {/* Confidence warning */}
-        {hasLowConfidence && (
+        {/* Confidence warning - only for guests */}
+        {!isVisitor && hasLowConfidence && (
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
             <p className="text-red-600 text-sm mb-2">
               <AlertTriangle className="w-4 h-4 inline mr-2" />
@@ -265,8 +272,8 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
           </div>
         )}
 
-        {/* Two-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Two-column layout - full width for visitors since they only have extracted section */}
+        <div className={`grid gap-6 ${isVisitor ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
           {/* SECTION A: Extracted (Read-Only) */}
           <div className="space-y-4">
             <h4 className="text-gray-700 font-medium text-sm uppercase tracking-wide border-b border-gray-200 pb-2">
@@ -331,132 +338,136 @@ const TM30DetailsDrawer = ({ session, onSave, onMarkReady }: TM30DetailsDrawerPr
             </div>
           </div>
 
-          {/* SECTION B: TM30 Required (Editable) */}
-          <div className="space-y-4">
-            <h4 className="text-gray-700 font-medium text-sm uppercase tracking-wide border-b border-gray-200 pb-2">
-              TM30 Required (Editable)
-            </h4>
-
+          {/* SECTION B: TM30 Required (Editable) - only for guests */}
+          {!isVisitor && (
             <div className="space-y-4">
-              {/* Nationality (simple text input) */}
-              <div className="space-y-1">
-                <Label
-                  className={`text-xs ${missingFields.includes("nationality") ? "text-red-400" : "text-gray-500"}`}
-                >
-                  Nationality <span className="text-red-400">*</span>
-                </Label>
+              <h4 className="text-gray-700 font-medium text-sm uppercase tracking-wide border-b border-gray-200 pb-2">
+                TM30 Required (Editable)
+              </h4>
 
-                <Input
-                  value={formData.nationality || ""}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, nationality: e.target.value || null }))}
-                  placeholder="e.g. USA"
-                  className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
-                    missingFields.includes("nationality") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
-                  }`}
-                />
+              <div className="space-y-4">
+                {/* Nationality (simple text input) */}
+                <div className="space-y-1">
+                  <Label
+                    className={`text-xs ${missingFields.includes("nationality") ? "text-red-400" : "text-gray-500"}`}
+                  >
+                    Nationality <span className="text-red-400">*</span>
+                  </Label>
 
-                {missingFields.includes("nationality") && <p className="text-red-400 text-xs">Required</p>}
-              </div>
+                  <Input
+                    value={formData.nationality || ""}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, nationality: e.target.value || null }))}
+                    placeholder="e.g. USA"
+                    className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
+                      missingFields.includes("nationality") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
+                    }`}
+                  />
 
-              {/* Sex */}
-              <div className="space-y-1">
-                <Label className={`text-xs ${missingFields.includes("sex") ? "text-red-400" : "text-gray-500"}`}>
-                  Sex <span className="text-red-400">*</span>
-                </Label>
-                <div className="flex gap-2">
-                  {(["M", "F", "X"] as const).map((option) => (
-                    <Button
-                      key={option}
-                      variant={formData.sex === option ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setFormData((prev) => ({ ...prev, sex: option }))}
-                      className={
-                        formData.sex === option
-                          ? "gradient-button text-white"
-                          : `border-gray-300 text-gray-700 hover:bg-gray-100 ${
-                              missingFields.includes("sex") ? "border-red-500/50" : ""
-                            }`
-                      }
-                    >
-                      {option}
-                    </Button>
-                  ))}
+                  {missingFields.includes("nationality") && <p className="text-red-400 text-xs">Required</p>}
                 </div>
-                {missingFields.includes("sex") && <p className="text-red-400 text-xs">Required</p>}
-              </div>
 
-              {renderRequiredInput("Arrival Date/Time", "arrival_date_time", "datetime-local")}
+                {/* Sex */}
+                <div className="space-y-1">
+                  <Label className={`text-xs ${missingFields.includes("sex") ? "text-red-400" : "text-gray-500"}`}>
+                    Sex <span className="text-red-400">*</span>
+                  </Label>
+                  <div className="flex gap-2">
+                    {(["M", "F", "X"] as const).map((option) => (
+                      <Button
+                        key={option}
+                        variant={formData.sex === option ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setFormData((prev) => ({ ...prev, sex: option }))}
+                        className={
+                          formData.sex === option
+                            ? "gradient-button text-white"
+                            : `border-gray-300 text-gray-700 hover:bg-gray-100 ${
+                                missingFields.includes("sex") ? "border-red-500/50" : ""
+                              }`
+                        }
+                      >
+                        {option}
+                      </Button>
+                    ))}
+                  </div>
+                  {missingFields.includes("sex") && <p className="text-red-400 text-xs">Required</p>}
+                </div>
 
-              {/* Property */}
-              <div className="space-y-1">
-                <Label className={`text-xs ${missingFields.includes("property") ? "text-red-400" : "text-gray-500"}`}>
-                  Property <span className="text-red-400">*</span>
-                </Label>
-                <Input
-                  value={formData.property || ""}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, property: e.target.value || null }))}
-                  placeholder="Property name"
-                  className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
-                    missingFields.includes("property") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
-                  }`}
-                />
-                {missingFields.includes("property") && <p className="text-red-400 text-xs">Required</p>}
-              </div>
+                {renderRequiredInput("Arrival Date/Time", "arrival_date_time", "datetime-local")}
 
-              {renderRequiredInput("Reservation Number", "room_number", "text", "e.g. S923485")}
+                {/* Property */}
+                <div className="space-y-1">
+                  <Label className={`text-xs ${missingFields.includes("property") ? "text-red-400" : "text-gray-500"}`}>
+                    Property <span className="text-red-400">*</span>
+                  </Label>
+                  <Input
+                    value={formData.property || ""}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, property: e.target.value || null }))}
+                    placeholder="Property name"
+                    className={`bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 ${
+                      missingFields.includes("property") ? "border-red-500/50 ring-1 ring-red-500/30" : ""
+                    }`}
+                  />
+                  {missingFields.includes("property") && <p className="text-red-400 text-xs">Required</p>}
+                </div>
 
-              {/* Notes */}
-              <div className="space-y-1">
-                <Label className="text-xs text-gray-500">
-                  Notes / Exception Reason{" "}
-                  {!ready && <span className="text-amber-400">(required if TM30 incomplete)</span>}
-                </Label>
-                <Textarea
-                  value={formData.notes || ""}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value || null }))}
-                  placeholder="Add notes or explain why TM30 is incomplete..."
-                  className="bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 min-h-[80px]"
-                />
+                {renderRequiredInput("Reservation Number", "room_number", "text", "e.g. S923485")}
+
+                {/* Notes */}
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">
+                    Notes / Exception Reason{" "}
+                    {!ready && <span className="text-amber-400">(required if TM30 incomplete)</span>}
+                  </Label>
+                  <Textarea
+                    value={formData.notes || ""}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value || null }))}
+                    placeholder="Add notes or explain why TM30 is incomplete..."
+                    className="bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 min-h-[80px]"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Footer actions */}
-        <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-          <Button variant="outline" onClick={handleCancel} className="border-gray-300 text-gray-700 hover:bg-gray-100">
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={saving} className="gradient-button text-white">
-            {saving ? "Saving..." : "Save TM30"}
-          </Button>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button
-                    onClick={handleMarkReady}
-                    disabled={!canMarkReady}
-                    variant="outline"
-                    className={
-                      canMarkReady
-                        ? "bg-green-600 hover:bg-green-700 text-white border-green-500"
-                        : "border-gray-300 text-gray-400 cursor-not-allowed"
-                    }
-                  >
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Mark TM30 Ready
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {!canMarkReady && (
-                <TooltipContent>
-                  <p>{!ready ? `Missing: ${missingFields.join(", ")}` : "Please confirm extracted fields first"}</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+        {/* Footer actions - only for guests */}
+        {!isVisitor && (
+          <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+            <Button variant="outline" onClick={handleCancel} className="border-gray-300 text-gray-700 hover:bg-gray-100">
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving} className="gradient-button text-white">
+              {saving ? "Saving..." : "Save TM30"}
+            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      onClick={handleMarkReady}
+                      disabled={!canMarkReady}
+                      variant="outline"
+                      className={
+                        canMarkReady
+                          ? "bg-green-600 hover:bg-green-700 text-white border-green-500"
+                          : "border-gray-300 text-gray-400 cursor-not-allowed"
+                      }
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Mark TM30 Ready
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!canMarkReady && (
+                  <TooltipContent>
+                    <p>{!ready ? `Missing: ${missingFields.join(", ")}` : "Please confirm extracted fields first"}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </div>
     </motion.div>
   );
