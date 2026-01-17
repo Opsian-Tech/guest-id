@@ -641,7 +641,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
                     {expandedRow === id && (
                       <TableRow className="border-white/10">
                         <TableCell colSpan={9} className="p-0">
-                          <TM30DetailsDrawer session={session} onSave={handleSaveTM30} onMarkReady={handleMarkReady} isVisitor={isVisitor} />
+                          <TM30DetailsDrawer session={session} onSave={handleSaveTM30} onMarkReady={handleMarkReady} />
                         </TableCell>
                       </TableRow>
                     )}
