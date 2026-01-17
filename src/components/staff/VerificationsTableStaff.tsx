@@ -365,7 +365,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
           variant={flowTypeFilter === "all" ? "default" : "outline"}
           size="sm"
           onClick={() => setFlowTypeFilter("all")}
-          className={flowTypeFilter === "all" ? "bg-white text-gray-900" : "glass border-white/20 text-white hover:bg-white/20"}
+          className={flowTypeFilter === "all" ? "bg-white text-gray-900 shadow-lg" : "glass-button"}
         >
           {t("staff.table.showAll")}
         </Button>
@@ -373,7 +373,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
           variant={flowTypeFilter === "guests" ? "default" : "outline"}
           size="sm"
           onClick={() => setFlowTypeFilter("guests")}
-          className={flowTypeFilter === "guests" ? "bg-white text-gray-900" : "glass border-white/20 text-white hover:bg-white/20"}
+          className={flowTypeFilter === "guests" ? "bg-white text-gray-900 shadow-lg" : "glass-button"}
         >
           <User className="w-4 h-4 mr-2" />
           {t("staff.table.guests")}
@@ -382,7 +382,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
           variant={flowTypeFilter === "visitors" ? "default" : "outline"}
           size="sm"
           onClick={() => setFlowTypeFilter("visitors")}
-          className={flowTypeFilter === "visitors" ? "bg-white text-gray-900" : "glass border-white/20 text-white hover:bg-white/20"}
+          className={flowTypeFilter === "visitors" ? "bg-white text-gray-900 shadow-lg" : "glass-button"}
         >
           <Users className="w-4 h-4 mr-2" />
           {t("staff.table.visitors")}
@@ -397,7 +397,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
             onClick={() => exportToCSV(sessions, "roomquest_verifications")}
             variant="outline"
             size="sm"
-            className="glass border-white/20 text-white hover:bg-white/20"
+            className="glass-button"
           >
             <Download className="w-4 h-4 mr-2" />
             {t("staff.table.exportCSV")}
@@ -406,7 +406,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
             onClick={() => exportToPDF(sessions, "roomquest_verifications")}
             variant="outline"
             size="sm"
-            className="glass border-white/20 text-white hover:bg-white/20"
+            className="glass-button"
           >
             <FileText className="w-4 h-4 mr-2" />
             {t("staff.table.exportPDF")}
@@ -440,7 +440,7 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
                 <Button
                   variant="outline"
                   size="sm"
-                  className="glass border-white/20 text-white hover:bg-white/20"
+                  className="glass-button"
                   disabled={readySessions.length === 0}
                 >
                   <Download className="w-4 h-4 mr-2" />
@@ -448,16 +448,16 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
                   <ChevronDown className="w-4 h-4 ml-2" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-gray-900 border-white/20">
+              <DropdownMenuContent className="glass-dropdown">
                 <DropdownMenuItem
                   onClick={() => handleBulkExport("csv")}
-                  className="text-white hover:bg-white/10 cursor-pointer"
+                  className="text-white hover:bg-white/30 focus:bg-white/30 cursor-pointer"
                 >
                   <FileSpreadsheet className="w-4 h-4 mr-2" /> CSV
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleBulkExport("json")}
-                  className="text-white hover:bg-white/10 cursor-pointer"
+                  className="text-white hover:bg-white/30 focus:bg-white/30 cursor-pointer"
                 >
                   <FileJson className="w-4 h-4 mr-2" /> JSON
                 </DropdownMenuItem>
@@ -470,14 +470,14 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto ml-auto">
           <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as FilterStatus)}>
-            <SelectTrigger className="glass border-white/20 text-white w-full sm:w-[180px]">
+            <SelectTrigger className="glass-button w-full sm:w-[180px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
-            <SelectContent className="bg-gray-900 border-white/20">
-              <SelectItem value="all">{t("staff.table.showAll")}</SelectItem>
-              <SelectItem value="verified">{t("staff.table.verifiedOnly")}</SelectItem>
-              <SelectItem value="failed">{t("staff.table.failedOnly")}</SelectItem>
-              <SelectItem value="pending">{t("staff.table.pendingOnly")}</SelectItem>
+            <SelectContent className="glass-dropdown">
+              <SelectItem value="all" className="text-white hover:bg-white/30 focus:bg-white/30">{t("staff.table.showAll")}</SelectItem>
+              <SelectItem value="verified" className="text-white hover:bg-white/30 focus:bg-white/30">{t("staff.table.verifiedOnly")}</SelectItem>
+              <SelectItem value="failed" className="text-white hover:bg-white/30 focus:bg-white/30">{t("staff.table.failedOnly")}</SelectItem>
+              <SelectItem value="pending" className="text-white hover:bg-white/30 focus:bg-white/30">{t("staff.table.pendingOnly")}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -485,18 +485,40 @@ const VerificationsTableStaff = ({ sessions }: VerificationsTableStaffProps) => 
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="glass border-white/20 text-white hover:bg-white/20 w-full sm:w-[180px]"
+                className="glass-button w-full sm:w-[180px]"
               >
                 <Calendar className="w-4 h-4 mr-2" />
                 {selectedDate ? format(selectedDate, "MMM dd, yyyy") : t("staff.table.pickDate")}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-gray-900 border-white/20">
+            <PopoverContent className="w-auto p-0 glass-dropdown">
               <CalendarComponent
                 mode="single"
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 className="pointer-events-auto"
+                classNames={{
+                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                  month: "space-y-4",
+                  caption: "flex justify-center pt-1 relative items-center text-white",
+                  caption_label: "text-sm font-medium text-white",
+                  nav: "space-x-1 flex items-center",
+                  nav_button: "h-7 w-7 bg-transparent p-0 opacity-70 hover:opacity-100 text-white hover:bg-white/20 rounded-md inline-flex items-center justify-center",
+                  nav_button_previous: "absolute left-1",
+                  nav_button_next: "absolute right-1",
+                  table: "w-full border-collapse space-y-1",
+                  head_row: "flex",
+                  head_cell: "text-white/60 rounded-md w-9 font-normal text-[0.8rem]",
+                  row: "flex w-full mt-2",
+                  cell: "h-9 w-9 text-center text-sm p-0 relative text-white",
+                  day: "h-9 w-9 p-0 font-normal text-white hover:bg-white/20 rounded-md inline-flex items-center justify-center",
+                  day_range_end: "day-range-end",
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+                  day_today: "bg-white/20 text-white",
+                  day_outside: "text-white/30 opacity-50",
+                  day_disabled: "text-white/30 opacity-50",
+                  day_hidden: "invisible",
+                }}
               />
             </PopoverContent>
           </Popover>

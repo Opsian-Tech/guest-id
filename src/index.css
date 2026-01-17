@@ -55,6 +55,16 @@
     @apply glass transition-all duration-300 hover:bg-white/20 hover:shadow-lg hover:scale-105;
   }
   
+  .glass-button {
+    @apply bg-white/25 backdrop-blur-md border border-white/30 text-white 
+           hover:bg-white/35 hover:shadow-lg hover:shadow-black/20 
+           transition-all duration-200;
+  }
+  
+  .glass-dropdown {
+    @apply bg-white/20 backdrop-blur-xl border border-white/30 text-white shadow-xl;
+  }
+  
   .gradient-bg {
     background: linear-gradient(135deg, hsl(210, 50%, 60%) 0%, hsl(217, 91%, 60%) 100%);
   }
