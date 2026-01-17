@@ -141,7 +141,7 @@ const StaffDashboard = () => {
               onClick={handleRefresh}
               variant="outline"
               disabled={refreshing}
-              className="glass border-white/20 text-white hover:bg-white/20"
+              className="glass-button"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
               {t('staff.refresh')}
@@ -149,7 +149,7 @@ const StaffDashboard = () => {
             <Button
               onClick={handleLogout}
               variant="outline"
-              className="glass border-white/20 text-white hover:bg-white/20"
+              className="glass-button"
             >
               <LogOut className="w-4 h-4 mr-2" />
               {t('staff.logout')}

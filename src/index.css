@@ -56,13 +56,26 @@
   }
   
   .glass-button {
-    @apply bg-white/25 backdrop-blur-md border border-white/30 text-white 
-           hover:bg-white/35 hover:shadow-lg hover:shadow-black/20 
-           transition-all duration-200;
+    background: rgba(255, 255, 255, 0.3) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    color: white !important;
+    transition: all 0.2s ease;
+  }
+  
+  .glass-button:hover {
+    background: rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
   }
   
   .glass-dropdown {
-    @apply bg-white/20 backdrop-blur-xl border border-white/30 text-white shadow-xl;
+    background: rgba(30, 41, 59, 0.95) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   }
   
   .gradient-bg {
