@@ -3,13 +3,29 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Home, Clock } from "lucide-react";
 import { VerificationData } from "@/pages/Verify";
 import confetti from "canvas-confetti";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 type Props = {
   data: VerificationData;
   onHome: () => void;
 };
+
+function formatTimeHHMM(iso?: string | null) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  // show local device time; stored times are ISO UTC but Date() will render in device local
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function minutesRemaining(expiresIso?: string | null) {
+  if (!expiresIso) return null;
+  const exp = new Date(expiresIso);
+  if (Number.isNaN(exp.getTime())) return null;
+  const diffMs = exp.getTime() - Date.now();
+  return Math.max(0, Math.ceil(diffMs / 60000));
+}
 
 const VisitorResultsStep = ({ data, onHome }: Props) => {
   const { t } = useTranslation();
@@ -22,8 +38,29 @@ const VisitorResultsStep = ({ data, onHome }: Props) => {
     });
   }, []);
 
-  // Generate a 6-digit access code (in real app, this would come from backend)
-  const accessCode = data.visitorAccessCode || "454545";
+  const accessCode = useMemo(() => {
+    // Prefer the real backend field (you should already be mapping it into data.visitorAccessCode)
+    const raw = (data.visitorAccessCode || "").toString().trim();
+    return raw.length ? raw : "—";
+  }, [data.visitorAccessCode]);
+
+  const grantedAtLabel = useMemo(() => formatTimeHHMM((data as any)?.visitorAccessGrantedAt), [data]);
+
+  const expiresAtLabel = useMemo(() => formatTimeHHMM((data as any)?.visitorAccessExpiresAt), [data]);
+
+  const remainingMins = useMemo(() => minutesRemaining((data as any)?.visitorAccessExpiresAt), [data]);
+
+  const windowLine = useMemo(() => {
+    if (grantedAtLabel && expiresAtLabel) return `${grantedAtLabel} – ${expiresAtLabel}`;
+    if (expiresAtLabel) return `${t("visitor.expiresAt", { defaultValue: "Expires at" })} ${expiresAtLabel}`;
+    return null;
+  }, [grantedAtLabel, expiresAtLabel, t]);
+
+  const remainingLine = useMemo(() => {
+    if (remainingMins === null) return null;
+    // Simple, no extra i18n keys required
+    return remainingMins === 1 ? "1 minute remaining" : `${remainingMins} minutes remaining`;
+  }, [remainingMins]);
 
   return (
     <motion.div
@@ -40,64 +77,71 @@ const VisitorResultsStep = ({ data, onHome }: Props) => {
         <CheckCircle2 className="w-24 h-24 text-green-400 mx-auto mb-6" />
       </motion.div>
 
-      <h2 className="text-4xl md:text-5xl font-thin text-white mb-4">
-        {t("visitor.accessGranted")}
-      </h2>
+      <h2 className="text-4xl md:text-5xl font-thin text-white mb-4">{t("visitor.accessGranted")}</h2>
 
       {/* Time limit indicator */}
-      <div className="flex items-center justify-center gap-2 mb-8">
-        <Clock className="w-5 h-5 text-white/70" />
-        <p className="text-xl text-white/80">{t("visitor.validFor30Minutes")}</p>
+      <div className="flex flex-col items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center gap-2">
+          <Clock className="w-5 h-5 text-white/70" />
+          <p className="text-xl text-white/80">{t("visitor.validFor30Minutes")}</p>
+        </div>
+
+        {windowLine ? <p className="text-sm text-white/70">{windowLine}</p> : null}
+
+        {remainingLine ? <p className="text-sm text-white/70">{remainingLine}</p> : null}
       </div>
 
       {/* Large access code display */}
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.4 }}
         className="bg-white rounded-2xl p-8 mb-8 shadow-lg"
       >
-        <p className="text-gray-500 text-sm mb-2 uppercase tracking-wide">
-          {t("visitor.accessCode")}
-        </p>
-        <p className="text-6xl md:text-7xl font-bold text-gray-900 tracking-widest">
-          {accessCode}
+        <p className="text-gray-500 text-sm mb-2 uppercase tracking-wide">{t("visitor.accessCode")}</p>
+
+        <p className="text-6xl md:text-7xl font-bold text-gray-900 tracking-widest select-all">{accessCode}</p>
+
+        <p className="text-gray-500 text-xs mt-3">
+          {t("visitor.showAtDoor", { defaultValue: "Show this code at the door keypad." })}
         </p>
       </motion.div>
 
       {/* Visitor summary */}
       <div className="glass rounded-xl p-5 mb-8 text-left">
-        <h3 className="text-white/60 text-sm uppercase tracking-wide mb-3">
-          {t("visitor.visitorDetails")}
-        </h3>
+        <h3 className="text-white/60 text-sm uppercase tracking-wide mb-3">{t("visitor.visitorDetails")}</h3>
         <div className="space-y-2">
           <p className="text-white text-lg">
-            <span className="text-white/60">{t("visitor.name")}:</span>{" "}
-            {data.visitorFirstName} {data.visitorLastName}
+            <span className="text-white/60">{t("visitor.name")}:</span> {data.visitorFirstName} {data.visitorLastName}
           </p>
           <p className="text-white text-lg">
-            <span className="text-white/60">{t("visitor.phone")}:</span>{" "}
-            {data.visitorPhone}
+            <span className="text-white/60">{t("visitor.phone")}:</span> {data.visitorPhone}
           </p>
           <p className="text-white text-lg">
-            <span className="text-white/60">{t("visitor.purpose")}:</span>{" "}
-            {data.visitorReason}
+            <span className="text-white/60">{t("visitor.purpose")}:</span> {data.visitorReason}
           </p>
+
+          {/* Optional: show property/door if you want (safe to keep hidden if undefined) */}
+          {(data as any)?.propertyExternalId ? (
+            <p className="text-white/80 text-sm pt-2">
+              <span className="text-white/50">Property:</span> {(data as any)?.propertyExternalId}
+              {(data as any)?.doorKey ? (
+                <>
+                  {" "}
+                  <span className="text-white/50">• Door:</span> {(data as any)?.doorKey}
+                </>
+              ) : null}
+            </p>
+          ) : null}
         </div>
       </div>
 
       {/* Data deletion note */}
       <div className="glass rounded-xl p-4 mb-8">
-        <p className="text-xs text-white/70 text-center leading-relaxed">
-          {t("results.deletionNote")}
-        </p>
+        <p className="text-xs text-white/70 text-center leading-relaxed">{t("results.deletionNote")}</p>
       </div>
 
-      <Button
-        onClick={onHome}
-        variant="glass"
-        className="w-full h-14 text-lg font-bold"
-      >
+      <Button onClick={onHome} variant="glass" className="w-full h-14 text-lg font-bold">
         <Home className="w-5 h-5 mr-2" />
         {t("results.backToHome")}
       </Button>
