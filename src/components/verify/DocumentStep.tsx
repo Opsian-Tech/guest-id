@@ -85,8 +85,35 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
       const response = await api.verify(uploadPayload);
 
       if (response.success) {
-        console.log("[Document] Upload successful");
-        updateData({ documentImage: optimizeResult.dataUrl });
+        console.log("[Document] Upload successful, response:", response);
+        
+        // Extract visitor access code (returned by backend for visitor flow)
+        const visitorAccessCode = 
+          (response as any).visitor_access_code ||
+          (response as any).access_code ||
+          (response as any).data?.visitor_access_code ||
+          (response as any).data?.access_code ||
+          undefined;
+        
+        const visitorAccessGrantedAt = 
+          (response as any).visitor_access_granted_at ||
+          (response as any).data?.visitor_access_granted_at ||
+          undefined;
+          
+        const visitorAccessExpiresAt = 
+          (response as any).visitor_access_expires_at ||
+          (response as any).data?.visitor_access_expires_at ||
+          undefined;
+
+        console.log("[Document] Visitor access code from response:", visitorAccessCode);
+        
+        updateData({ 
+          documentImage: optimizeResult.dataUrl,
+          ...(visitorAccessCode ? { visitorAccessCode } : {}),
+          ...(visitorAccessGrantedAt ? { visitorAccessGrantedAt } : {}),
+          ...(visitorAccessExpiresAt ? { visitorAccessExpiresAt } : {}),
+        });
+        
         toast({ title: "Document uploaded successfully!" });
         onNext();
       } else {
