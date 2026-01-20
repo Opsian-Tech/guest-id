@@ -39,10 +39,16 @@ const VisitorResultsStep = ({ data, onHome }: Props) => {
   }, []);
 
   const accessCode = useMemo(() => {
-    // Prefer the real backend field (you should already be mapping it into data.visitorAccessCode)
+    console.log("[VisitorResults] Full data object:", data);
+    console.log("[VisitorResults] visitorAccessCode:", data.visitorAccessCode);
+    
     const raw = (data.visitorAccessCode || "").toString().trim();
-    return raw.length ? raw : "—";
-  }, [data.visitorAccessCode]);
+    if (!raw.length) {
+      console.warn("[VisitorResults] No access code available in data");
+      return "PENDING";
+    }
+    return raw;
+  }, [data, data.visitorAccessCode]);
 
   const grantedAtLabel = useMemo(() => formatTimeHHMM((data as any)?.visitorAccessGrantedAt), [data]);
 
@@ -121,18 +127,6 @@ const VisitorResultsStep = ({ data, onHome }: Props) => {
             <span className="text-white/60">{t("visitor.purpose")}:</span> {data.visitorReason}
           </p>
 
-          {/* Optional: show property/door if you want (safe to keep hidden if undefined) */}
-          {(data as any)?.propertyExternalId ? (
-            <p className="text-white/80 text-sm pt-2">
-              <span className="text-white/50">Property:</span> {(data as any)?.propertyExternalId}
-              {(data as any)?.doorKey ? (
-                <>
-                  {" "}
-                  <span className="text-white/50">• Door:</span> {(data as any)?.doorKey}
-                </>
-              ) : null}
-            </p>
-          ) : null}
         </div>
       </div>
 

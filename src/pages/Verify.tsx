@@ -140,7 +140,12 @@ const Verify = () => {
         visitorReason: (session as any).visitor_reason,
 
         // Visitor access fields (these were missing from your frontend type/mapping)
-        visitorAccessCode: (session as any).visitor_access_code || undefined,
+        visitorAccessCode: 
+          (session as any).visitor_access_code || 
+          (session as any).access_code ||
+          (session as any).accessCode ||
+          (session as any).code ||
+          undefined,
         visitorAccessGrantedAt: (session as any).visitor_access_granted_at || undefined,
         visitorAccessExpiresAt: (session as any).visitor_access_expires_at || undefined,
 
