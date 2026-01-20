@@ -87,4 +87,237 @@ const Verify = () => {
 
   const hasLoadedRef = useRef(false);
 
-  const
+  const fetchSessionWithRetry = useCallback(async (sessionToken: string, attempt = 0): Promise<boolean> => {
+    console.log(`[Verify] get_session attempt ${attempt + 1} for token: ${sessionToken}`);
+
+    try {
+      const res = await api.verify({
+        action: "get_session",
+        session_token: sessionToken,
+      } as any);
+
+      console.log("[Verify] get_session success:", res);
+
+      const session = res.session;
+
+      // Prefer backend flow_type, then URL param, then a frontend stored fallback
+      const params = new URLSearchParams(window.location.search);
+      const urlFlow = params.get("flow");
+      let storedFlow: string | null = null;
+      try {
+        storedFlow = sessionStorage.getItem(`verify_flow_${sessionToken}`);
+      } catch {
+        // ignore storage errors
+      }
+
+      const flowType: FlowType =
+        (session as any).flow_type === "visitor"
+          ? "visitor"
+          : urlFlow === "visitor"
+            ? "visitor"
+            : storedFlow === "visitor"
+              ? "visitor"
+              : "guest";
+
+      setData({
+        guestName: session.guest_name || "",
+        roomNumber: session.room_number || "",
+        sessionToken: session.session_token,
+        consentGiven: session.consent_given,
+        consentTime: session.consent_time,
+        isVerified: session.is_verified,
+        verificationScore: session.verification_score,
+        expectedGuestCount: session.expected_guest_count,
+        verifiedGuestCount: session.verified_guest_count,
+        guestIndex: session.guest_index,
+        requiresAdditionalGuest: session.requires_additional_guest,
+        flowType,
+
+        // Visitor identity fields (already returned by backend)
+        visitorFirstName: (session as any).visitor_first_name,
+        visitorLastName: (session as any).visitor_last_name,
+        visitorPhone: (session as any).visitor_phone,
+        visitorReason: (session as any).visitor_reason,
+
+        // Visitor access fields (these were missing from your frontend type/mapping)
+        visitorAccessCode: (session as any).visitor_access_code || undefined,
+        visitorAccessGrantedAt: (session as any).visitor_access_granted_at || undefined,
+        visitorAccessExpiresAt: (session as any).visitor_access_expires_at || undefined,
+
+        // Optional context
+        propertyExternalId: (session as any).property_external_id || undefined,
+        doorKey: (session as any).door_key || undefined,
+      });
+
+      // Keep flow type in sync for consent modal on existing sessions
+      setPendingFlowType(flowType);
+
+      setShowConsent(session.consent_given !== true);
+      setStep(stepFromBackend(session.current_step));
+      return true;
+    } catch (err: any) {
+      console.error(`[Verify] get_session attempt ${attempt + 1} failed:`, err?.message || err);
+
+      if (attempt < RETRY_DELAYS.length) {
+        const delay = RETRY_DELAYS[attempt];
+        console.log(`[Verify] Retrying in ${delay}ms...`);
+        await sleep(delay);
+        return fetchSessionWithRetry(sessionToken, attempt + 1);
+      }
+
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
+    const loadSession = async () => {
+      if (!token || token === "new") {
+        const params = new URLSearchParams(window.location.search);
+        const flow = params.get("flow") === "visitor" ? "visitor" : "guest";
+        console.log("[Verify] New session flow, showing consent for:", flow);
+        setPendingFlowType(flow);
+        setShowConsent(true);
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("[Verify] Loading existing session:", token);
+
+      // Small initial delay to allow DB write to propagate
+      await sleep(300);
+
+      const success = await fetchSessionWithRetry(token);
+
+      if (!success) {
+        console.error("[Verify] All retries failed for token:", token);
+        toast({
+          title: "Session not found",
+          description: "The session may have expired or failed to create. Please try again.",
+          variant: "destructive",
+        });
+        navigate("/");
+      }
+
+      setIsLoading(false);
+    };
+
+    loadSession();
+  }, [token, navigate, toast, fetchSessionWithRetry]);
+
+  const updateData = (newData: Partial<VerificationData>) => {
+    setData((prev) => ({ ...prev, ...newData }));
+  };
+
+  const handleConsent = (sessionToken: string, flowType?: FlowType) => {
+    const finalFlow: FlowType = flowType === "visitor" ? "visitor" : "guest";
+
+    setShowConsent(false);
+    updateData({
+      sessionToken,
+      consentGiven: true,
+      consentTime: new Date().toISOString(),
+      flowType: finalFlow,
+    });
+
+    try {
+      sessionStorage.setItem(`verify_flow_${sessionToken}`, finalFlow);
+    } catch {
+      // ignore storage errors
+    }
+
+    navigate(`/verify/${sessionToken}?flow=${finalFlow}`, { replace: true });
+  };
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-white">Loading session…</div>;
+  }
+
+  const isVisitorFlow = data.flowType === "visitor";
+
+  return (
+    <>
+      {showConsent && (
+        <ConsentModal
+          flowType={pendingFlowType}
+          existingSessionToken={token !== "new" ? token : undefined}
+          onConsent={(sessionToken) => handleConsent(sessionToken, pendingFlowType)}
+          onCancel={() => navigate("/")}
+        />
+      )}
+
+      <div className="min-h-screen flex items-center justify-center p-4 pb-20">
+        <div className="absolute top-4 right-4 z-50">
+          <LanguageSwitcher />
+        </div>
+
+        <div className="w-full max-w-2xl">
+          {!isVisitorFlow && <GuestProgressIndicator data={data} />}
+
+          <AnimatePresence mode="wait">
+            {step === 1 &&
+              (isVisitorFlow ? (
+                <VisitorWelcomeStep
+                  data={data}
+                  updateData={updateData}
+                  onNext={() => setStep(2)}
+                  onError={(e) => toast({ title: "Error", description: e.message })}
+                />
+              ) : (
+                <WelcomeStep
+                  data={data}
+                  updateData={updateData}
+                  onNext={() => setStep(2)}
+                  onError={(e) => toast({ title: "Error", description: e.message })}
+                />
+              ))}
+
+            {step === 2 && (
+              <DocumentStep
+                data={data}
+                updateData={updateData}
+                onNext={() => setStep(isVisitorFlow ? 4 : 3)}
+                onBack={() => setStep(1)}
+                onError={(e) => toast({ title: "Error", description: e.message })}
+              />
+            )}
+
+            {step === 3 && (
+              <SelfieStep
+                data={data}
+                updateData={updateData}
+                onNext={() => setStep(4)}
+                onNextGuest={() => {
+                  updateData({
+                    documentImage: undefined,
+                    selfieImage: undefined,
+                  });
+                  setStep(2);
+                }}
+                onBack={() => setStep(2)}
+                onError={(e) => toast({ title: "Error", description: e.message })}
+              />
+            )}
+
+            {step === 4 &&
+              (isVisitorFlow ? (
+                <VisitorResultsStep data={data} onHome={() => navigate("/")} />
+              ) : (
+                <ResultsStep
+                  data={data}
+                  onRetry={() => navigate("/verify/new?flow=guest")}
+                  onHome={() => navigate("/")}
+                />
+              ))}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <Footer />
+    </>
+  );
+};
+
+export default Verify;
