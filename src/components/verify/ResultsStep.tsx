@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Home, RotateCcw, CircleCheck } from "lucide-react";
+import { CheckCircle2, XCircle, Home, RotateCcw } from "lucide-react";
 import { VerificationData } from "@/pages/Verify";
 import confetti from "canvas-confetti";
 import { useEffect } from "react";
@@ -46,13 +46,6 @@ const ResultsStep = ({ data, onRetry, onHome }: Props) => {
           {t('results.successTitle')}
         </h2>
 
-        <div className="glass rounded-2xl p-6 mb-6">
-          <div className="text-6xl font-bold text-white mb-2">
-            {(data.verificationScore * 100).toFixed(2)}%
-          </div>
-          <div className="text-white/80 text-lg">{t('results.verificationScore')}</div>
-        </div>
-
         {/* Guest Info Card - White background for readability */}
         <div className="bg-white rounded-xl p-6 mb-6 shadow-lg">
           <p className="text-gray-800 text-lg mb-1">
@@ -67,30 +60,6 @@ const ResultsStep = ({ data, onRetry, onHome }: Props) => {
           <p className="text-gray-800 text-lg">
             <strong>{t('results.roomKeyPasscode')}:</strong> {data.roomAccessCode || t('results.pending')}
           </p>
-        </div>
-
-        <div className="space-y-4 mb-6">
-          <div className="bg-white rounded-xl p-4 flex items-center justify-between shadow-md">
-            <span className="text-gray-800 font-medium">{t('results.livenessCheck')}</span>
-            <span className="font-bold flex items-center gap-2" style={{ color: "#009933" }}>
-              <CircleCheck className="w-5 h-5" />
-              {data.livenessScore ? (data.livenessScore * 100).toFixed(0) : 0}%
-            </span>
-          </div>
-          <div className="bg-white rounded-xl p-4 flex items-center justify-between shadow-md">
-            <span className="text-gray-800 font-medium">{t('results.faceMatch')}</span>
-            <span className="font-bold flex items-center gap-2" style={{ color: "#009933" }}>
-              <CircleCheck className="w-5 h-5" />
-              {data.faceMatchScore ? (data.faceMatchScore * 100).toFixed(0) : 0}%
-            </span>
-          </div>
-          <div className="bg-white rounded-xl p-4 flex items-center justify-between shadow-md">
-            <span className="text-gray-800 font-medium">{t('results.documentCheck')}</span>
-            <span className="font-bold flex items-center gap-2" style={{ color: "#009933" }}>
-              <CircleCheck className="w-5 h-5" />
-              {t('results.passed')}
-            </span>
-          </div>
         </div>
 
         <div className="glass rounded-xl p-4 mb-8">
