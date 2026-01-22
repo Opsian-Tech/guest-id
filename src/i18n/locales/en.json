@@ -132,6 +132,8 @@
     "faceMatch": "Face Match",
     "documentCheck": "Document Verification",
     "passed": "Passed",
+    "pendingAssignment": "Pending assignment",
+    "pending": "Pending",
     "failed": "Failed",
     "guestInfo": "Guest Information",
     "guestName": "Guest",
