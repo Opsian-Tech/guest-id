@@ -54,6 +54,10 @@ export type VerificationData = {
   // Optional context (safe to keep even if you don't display it)
   propertyExternalId?: string;
   doorKey?: string;
+
+  // Cloudbeds integration fields
+  physicalRoom?: string;      // The actual room name/number from Cloudbeds
+  roomAccessCode?: string;    // Door lock access code from Cloudbeds
 };
 
 const stepFromBackend = (step?: string) => {
@@ -152,6 +156,10 @@ const Verify = () => {
         // Optional context
         propertyExternalId: (session as any).property_external_id || undefined,
         doorKey: (session as any).door_key || undefined,
+
+        // Cloudbeds integration fields
+        physicalRoom: (session as any).physical_room || undefined,
+        roomAccessCode: (session as any).room_access_code || undefined,
       });
 
       // Keep flow type in sync for consent modal on existing sessions

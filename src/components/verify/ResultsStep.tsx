@@ -62,10 +62,10 @@ const ResultsStep = ({ data, onRetry, onHome }: Props) => {
             <strong>{t('results.roomNumber')}:</strong> {data.roomNumber}
           </p>
           <p className="text-gray-800 text-lg mb-1">
-            <strong>{t('results.physicalRoom')}:</strong> 514
+            <strong>{t('results.physicalRoom')}:</strong> {data.physicalRoom || t('results.pendingAssignment')}
           </p>
           <p className="text-gray-800 text-lg">
-            <strong>{t('results.roomKeyPasscode')}:</strong> 2012
+            <strong>{t('results.roomKeyPasscode')}:</strong> {data.roomAccessCode || t('results.pending')}
           </p>
         </div>
 

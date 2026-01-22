@@ -132,6 +132,8 @@
     "faceMatch": "การจับคู่ใบหน้า",
     "documentCheck": "การยืนยันเอกสาร",
     "passed": "ผ่าน",
+    "pendingAssignment": "รอการกำหนดห้อง",
+    "pending": "รอดำเนินการ",
     "failed": "ไม่ผ่าน",
     "guestInfo": "ข้อมูลผู้เข้าพัก",
     "guestName": "ผู้เข้าพัก",

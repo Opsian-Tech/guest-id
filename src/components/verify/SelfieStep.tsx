@@ -211,7 +211,18 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
         currentStep: session.current_step,
       });
 
-      // Update state with verified data (including visitor access code)
+      // Extract Cloudbeds integration fields
+      const physicalRoom = 
+        (response as any).physical_room || 
+        (responseData as any).physical_room ||
+        (session as any)?.physical_room;
+      
+      const roomAccessCode = 
+        (response as any).room_access_code || 
+        (responseData as any).room_access_code ||
+        (session as any)?.room_access_code;
+
+      // Update state with verified data (including visitor access code and Cloudbeds fields)
       updateData({
         selfieImage: optimizeResult.dataUrl,
         livenessScore,
@@ -224,6 +235,8 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
         expectedGuestCount: authExpectedGuestCount,
         guestIndex: authGuestIndex,
         visitorAccessCode: visitorAccessCode || (session as any).visitor_access_code,
+        physicalRoom,
+        roomAccessCode,
       });
 
       // ROUTING based on authoritative session state
