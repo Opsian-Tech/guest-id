@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { LogOut, TrendingUp, CheckCircle2, ShieldCheck, AlertCircle, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api, AdminStats, SessionRow } from "@/lib/api";
+import { MOCK_SESSIONS, MOCK_ADMIN_STATS } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
 import StatsCard from "@/components/admin/StatsCard";
 import VerificationsTableStaff from "@/components/staff/VerificationsTableStaff";
@@ -47,10 +48,14 @@ const StaffDashboard = () => {
       setStats(statsData);
       setSessions(sessionsData);
     } catch (error) {
+      // Use mock data as fallback when API fails
+      console.log("[StaffDashboard] API failed, using mock data");
+      setStats(MOCK_ADMIN_STATS);
+      setSessions(MOCK_SESSIONS);
       toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
-        variant: "destructive",
+        title: "Using Demo Data",
+        description: "Could not connect to server. Showing sample data.",
+        variant: "default",
       });
     } finally {
       if (isRefresh) {
