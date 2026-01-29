@@ -37,13 +37,30 @@ const StaffDashboard = () => {
     }
   }, []);
 
+  // Set to true to use mock data for testing UI
+  const USE_MOCK_DATA = true;
+
   const loadData = async (isRefresh = false) => {
-    try {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    if (USE_MOCK_DATA) {
+      // Use mock data for UI testing
+      console.log("[StaffDashboard] Using mock data for testing");
+      setStats(MOCK_ADMIN_STATS);
+      setSessions(MOCK_SESSIONS);
       if (isRefresh) {
-        setRefreshing(true);
+        setRefreshing(false);
       } else {
-        setLoading(true);
+        setLoading(false);
       }
+      return;
+    }
+
+    try {
       const [statsData, sessionsData] = await Promise.all([api.getAdminStats(), api.getAdminSessions()]);
       setStats(statsData);
       setSessions(sessionsData);
