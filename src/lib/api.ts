@@ -29,6 +29,11 @@ export interface UpdateGuestRequest {
   guest_name?: string;
   booking_ref?: string; // preferred
   room_number?: string; // fallback (legacy naming)
+  flow_type?: "guest" | "visitor";
+  visitor_first_name?: string;
+  visitor_last_name?: string;
+  visitor_phone?: string;
+  visitor_reason?: string;
 }
 
 export interface GetSessionRequest {
