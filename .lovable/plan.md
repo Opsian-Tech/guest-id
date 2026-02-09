@@ -1,95 +1,31 @@
 
 
-## Add Mock Data for Staff Dashboard
+# Fix: "Guest name required" error in Visitor Check-In Flow
 
-This plan adds sample mock data for both **Guest** and **Visitor** flows to the Staff Dashboard so you can see how the UI looks with realistic data without needing a live backend connection.
+## Problem
+When a visitor submits their details (first name, last name, phone, reason), the `VisitorWelcomeStep` calls `update_guest` **without sending `guest_name`**. The backend rejects this with "guest name required" because it enforces that field for all `update_guest` calls, regardless of flow type.
 
----
+## Root Cause
+In `VisitorWelcomeStep.tsx` (line ~88), the API call sends `visitor_first_name`, `visitor_last_name`, etc., but omits `guest_name`. The backend does not distinguish between guest and visitor flows when validating required fields on `update_guest`.
 
-### What Will Be Added
+## Solution
+Send a composed `guest_name` (from first + last name) alongside the visitor-specific fields. This satisfies the backend validation while keeping the visitor data intact.
 
-**Mock Guest Sessions (5 examples):**
-- Verified guests with high scores
-- Failed verification attempts
-- Pending verifications
-- Multi-guest booking examples (2 guests on one reservation)
-- Various extracted document data (passport info, nationality, etc.)
+## Changes
 
-**Mock Visitor Sessions (5 examples):**
-- Approved visitors with access codes
-- Visitors with different reasons (delivery, meeting, maintenance)
-- Various phone numbers and names
+### 1. `src/components/verify/VisitorWelcomeStep.tsx`
+- Add `guest_name` to the `update_guest` API call, composed from `visitor_first_name` and `visitor_last_name`
+- This is a one-line addition inside the `api.verify()` payload (~line 90):
+  ```
+  guest_name: `${result.data.firstName} ${result.data.lastName}`.trim(),
+  ```
 
----
+### 2. `src/lib/api.ts` — `UpdateGuestRequest` type
+- Add optional visitor fields to the type definition so TypeScript doesn't require `as any` casting:
+  - `flow_type?: "guest" | "visitor"`
+  - `visitor_first_name?: string`
+  - `visitor_last_name?: string`
+  - `visitor_phone?: string`
+  - `visitor_reason?: string`
 
-### Implementation
-
-**Step 1: Create Mock Data File**
-
-Create a new file `src/lib/mockData.ts` containing:
-- 5 sample guest sessions with realistic Thai hotel check-in data
-- 5 sample visitor sessions with access codes
-- Mock admin stats
-
-**Step 2: Update StaffDashboard.tsx**
-
-Modify the `loadData` function to:
-- Use mock data as a fallback when the API fails (or optionally always in dev mode)
-- This ensures the dashboard works even when the backend is unavailable
-
----
-
-### Sample Mock Data Preview
-
-| Type | Name | Room/Reason | Status | Score |
-|------|------|-------------|--------|-------|
-| Guest | John Smith | 401 | Verified | 95% |
-| Guest | Maria Garcia | 512 | Verified | 88% |
-| Guest | Wei Chen | 203 | Failed | 45% |
-| Guest | Anna Mueller | 715 | Pending | - |
-| Guest | James Wilson + Sarah Wilson | 608 | Multi-guest (2/2) | 92% |
-| Visitor | David Brown | Package Delivery | Approved | Code: 847291 |
-| Visitor | Lisa Thompson | Business Meeting | Approved | Code: 293847 |
-| Visitor | Michael Lee | Maintenance | Approved | Code: 582914 |
-| Visitor | Emma Davis | Property Viewing | Approved | Code: 719382 |
-| Visitor | Robert Kim | Food Delivery | Approved | Code: 461928 |
-
----
-
-### Technical Details
-
-```text
-src/lib/mockData.ts
-├── MOCK_GUEST_SESSIONS: SessionRow[]
-│   └── 5 guest records with:
-│       - flow_type: "guest"
-│       - extracted_info with passport/ID details
-│       - tm30_info with nationality, arrival time
-│       - verification scores
-│       - Multi-guest example (guest_verifications array)
-│
-├── MOCK_VISITOR_SESSIONS: SessionRow[]
-│   └── 5 visitor records with:
-│       - flow_type: "visitor"
-│       - visitor_first_name, visitor_last_name
-│       - visitor_phone, visitor_reason
-│       - visitor_access_code
-│
-└── MOCK_ADMIN_STATS: AdminStats
-    └── Pre-calculated totals matching mock sessions
-
-src/pages/StaffDashboard.tsx
-└── loadData() updated to use mock data on API failure
-```
-
----
-
-### Result
-
-After implementation:
-- The Staff Dashboard will display realistic sample data
-- You can test the Guest/Visitor filter toggle
-- TM30 status badges will show on guest records
-- Visitor access codes will be visible
-- Stats cards will show accurate counts based on mock data
-
+These are small, targeted changes -- no UI or flow logic changes needed.
