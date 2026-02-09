@@ -90,6 +90,7 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
         action: "verify_face" as const,
         session_token: data.sessionToken,
         selfie_data: cleanBase64,
+        image_data: cleanBase64,
         ...(typeof data.guestIndex === "number" ? { guest_index: data.guestIndex } : {}),
       };
 
