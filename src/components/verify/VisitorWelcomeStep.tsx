@@ -91,12 +91,13 @@ const VisitorWelcomeStep = ({ data, updateData, onNext, onError }: Props) => {
       await api.verify({
         action: "update_guest",
         session_token: data.sessionToken,
+        guest_name: `${result.data.firstName} ${result.data.lastName}`.trim(),
         flow_type: "visitor",
         visitor_first_name: result.data.firstName,
         visitor_last_name: result.data.lastName,
         visitor_phone: result.data.phone,
         visitor_reason: result.data.reason,
-      } as any);
+      });
 
       // Update local state
       updateData({
