@@ -92,6 +92,7 @@ const VisitorWelcomeStep = ({ data, updateData, onNext, onError }: Props) => {
         action: "update_guest",
         session_token: data.sessionToken,
         guest_name: `${result.data.firstName} ${result.data.lastName}`.trim(),
+        booking_ref: "VISITOR",
         room_number: "VISITOR",
         flow_type: "visitor",
         visitor_first_name: result.data.firstName,
