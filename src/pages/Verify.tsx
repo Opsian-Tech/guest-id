@@ -47,15 +47,18 @@ export type VerificationData = {
   visitorPhone?: string;
   visitorReason?: string;
 
+  // Visitor access fields (from backend)
   visitorAccessCode?: string;
   visitorAccessGrantedAt?: string;
   visitorAccessExpiresAt?: string;
 
+  // Optional context (safe to keep even if you don't display it)
   propertyExternalId?: string;
   doorKey?: string;
 
-  physicalRoom?: string;
-  roomAccessCode?: string;
+  // Cloudbeds integration fields
+  physicalRoom?: string; // The actual room name/number from Cloudbeds
+  roomAccessCode?: string; // Door lock access code from Cloudbeds
 };
 
 const stepFromBackend = (step?: string) => {
@@ -102,13 +105,14 @@ const Verify = () => {
 
       const session = res.session;
 
+      // Prefer backend flow_type, then URL param, then a frontend stored fallback
       const params = new URLSearchParams(window.location.search);
       const urlFlow = params.get("flow");
       let storedFlow: string | null = null;
       try {
         storedFlow = sessionStorage.getItem(`verify_flow_${sessionToken}`);
       } catch {
-        // ignore
+        // ignore storage errors
       }
 
       const flowType: FlowType =
@@ -134,11 +138,13 @@ const Verify = () => {
         requiresAdditionalGuest: session.requires_additional_guest,
         flowType,
 
+        // Visitor identity fields (already returned by backend)
         visitorFirstName: (session as any).visitor_first_name,
         visitorLastName: (session as any).visitor_last_name,
         visitorPhone: (session as any).visitor_phone,
         visitorReason: (session as any).visitor_reason,
 
+        // Visitor access fields (these were missing from your frontend type/mapping)
         visitorAccessCode:
           (session as any).visitor_access_code ||
           (session as any).access_code ||
@@ -148,13 +154,16 @@ const Verify = () => {
         visitorAccessGrantedAt: (session as any).visitor_access_granted_at || undefined,
         visitorAccessExpiresAt: (session as any).visitor_access_expires_at || undefined,
 
+        // Optional context
         propertyExternalId: (session as any).property_external_id || undefined,
         doorKey: (session as any).door_key || undefined,
 
+        // Cloudbeds integration fields
         physicalRoom: (session as any).physical_room || undefined,
-        roomAccessCode: (session as any).room_access_code || (session as any).roomAccessCode || undefined,
+        roomAccessCode: (session as any).room_access_code || undefined,
       });
 
+      // Keep flow type in sync for consent modal on existing sessions
       setPendingFlowType(flowType);
 
       setShowConsent(session.consent_given !== true);
@@ -191,6 +200,7 @@ const Verify = () => {
 
       console.log("[Verify] Loading existing session:", token);
 
+      // Small initial delay to allow DB write to propagate
       await sleep(300);
 
       const success = await fetchSessionWithRetry(token);
@@ -229,7 +239,7 @@ const Verify = () => {
     try {
       sessionStorage.setItem(`verify_flow_${sessionToken}`, finalFlow);
     } catch {
-      // ignore
+      // ignore storage errors
     }
 
     navigate(`/verify/${sessionToken}?flow=${finalFlow}`, { replace: true });
