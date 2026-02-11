@@ -15,6 +15,10 @@ export interface StartSessionRequest {
   flow_type?: "guest" | "visitor";
 }
 
+export interface StartVisitorRequest {
+  action: "start_visitor";
+}
+
 export interface LogConsentRequest {
   action: "log_consent";
   session_token: string;
@@ -61,6 +65,7 @@ export interface VerifyFaceRequest {
 
 export type VerifyRequest =
   | StartSessionRequest
+  | StartVisitorRequest
   | LogConsentRequest
   | UpdateGuestRequest
   | GetSessionRequest
@@ -129,7 +134,7 @@ export interface VerifyResponse {
   extracted_text?: string;
 
   // Multi-guest verification fields (from verify_face response)
-  guest_verified?: boolean;  // Did THIS guest pass verification?
+  guest_verified?: boolean; // Did THIS guest pass verification?
   requires_additional_guest?: boolean;
   expected_guest_count?: number;
   verified_guest_count?: number;
