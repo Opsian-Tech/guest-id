@@ -56,8 +56,8 @@ export type VerificationData = {
   doorKey?: string;
 
   // Cloudbeds integration fields
-  physicalRoom?: string;      // The actual room name/number from Cloudbeds
-  roomAccessCode?: string;    // Door lock access code from Cloudbeds
+  physicalRoom?: string; // The actual room name/number from Cloudbeds
+  roomAccessCode?: string; // Door lock access code from Cloudbeds
 };
 
 const stepFromBackend = (step?: string) => {
@@ -144,8 +144,8 @@ const Verify = () => {
         visitorReason: (session as any).visitor_reason,
 
         // Visitor access fields (these were missing from your frontend type/mapping)
-        visitorAccessCode: 
-          (session as any).visitor_access_code || 
+        visitorAccessCode:
+          (session as any).visitor_access_code ||
           (session as any).access_code ||
           (session as any).accessCode ||
           (session as any).code ||
@@ -159,7 +159,7 @@ const Verify = () => {
 
         // Cloudbeds integration fields
         physicalRoom: (session as any).physical_room || undefined,
-        roomAccessCode: (session as any).room_access_code || undefined,
+        roomAccessCode: (session as any).room_access_code ?? (session as any).roomAccessCode ?? undefined,
       });
 
       // Keep flow type in sync for consent modal on existing sessions
