@@ -221,7 +221,8 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       const roomAccessCode = 
         (response as any).room_access_code || 
         (responseData as any).room_access_code ||
-        (session as any)?.room_access_code;
+        (session as any)?.room_access_code ||
+        (session as any)?.roomAccessCode;
 
       // Update state with verified data (including visitor access code and Cloudbeds fields)
       updateData({
