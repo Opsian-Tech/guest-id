@@ -38,7 +38,7 @@ const StaffDashboard = () => {
   }, []);
 
   // Set to true to use mock data for testing UI
-  const USE_MOCK_DATA = true;
+  const USE_MOCK_DATA = false;
 
   const loadData = async (isRefresh = false) => {
     if (isRefresh) {
