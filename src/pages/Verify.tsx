@@ -1,4 +1,3 @@
-//verify.tsx
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
@@ -57,8 +56,8 @@ export type VerificationData = {
   doorKey?: string;
 
   // Cloudbeds integration fields
-  physicalRoom?: string; // The actual room name/number from Cloudbeds
-  roomAccessCode?: string; // Door lock access code from Cloudbeds
+  physicalRoom?: string;      // The actual room name/number from Cloudbeds
+  roomAccessCode?: string;    // Door lock access code from Cloudbeds
 };
 
 const stepFromBackend = (step?: string) => {
@@ -145,8 +144,8 @@ const Verify = () => {
         visitorReason: (session as any).visitor_reason,
 
         // Visitor access fields (these were missing from your frontend type/mapping)
-        visitorAccessCode:
-          (session as any).visitor_access_code ||
+        visitorAccessCode: 
+          (session as any).visitor_access_code || 
           (session as any).access_code ||
           (session as any).accessCode ||
           (session as any).code ||
