@@ -51,25 +51,15 @@ const WelcomeStep = ({ data, updateData, onNext, onError }: Props) => {
       onNext();
     } catch (err) {
       const error = err instanceof Error ? err : new Error("Failed to save guest info");
-      const msg = error.message || "";
 
-      console.error("[WelcomeStep] update_guest failed:", msg);
+      console.error("[WelcomeStep] update_guest failed:", error);
 
-      let title = "Error";
-      let description = "Could not save your details. Please check your connection and try again.";
+      toast({
+        title: "Error",
+        description: "Could not save your details. Please check your connection and try again.",
+        variant: "destructive",
+      });
 
-      if (msg.includes("name_mismatch_reservation")) {
-        title = "Name does not match reservation";
-        description = "The name you entered does not match the reservation. Please check your name and reservation number.";
-      } else if (msg.includes("Reservation not found")) {
-        title = "Reservation not found";
-        description = "We could not find a reservation with that number. Please double-check and try again.";
-      } else if (msg.includes("guest check in required")) {
-        title = "Not checked in";
-        description = "Your reservation has not been checked in yet. Please check in at the front desk first.";
-      }
-
-      toast({ title, description, variant: "destructive" });
       onError(error);
     } finally {
       setIsLoading(false);

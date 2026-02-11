@@ -159,7 +159,7 @@ const Verify = () => {
 
         // Cloudbeds integration fields
         physicalRoom: (session as any).physical_room || undefined,
-        roomAccessCode: (session as any).room_access_code || (session as any).roomAccessCode || undefined,
+        roomAccessCode: (session as any).room_access_code || undefined,
       });
 
       // Keep flow type in sync for consent modal on existing sessions

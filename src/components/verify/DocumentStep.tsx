@@ -120,18 +120,12 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
         throw new Error(response.error || "Failed to upload document");
       }
     } catch (error) {
-      const msg = (error as Error).message || "";
-      console.error("[Document] Upload error:", msg);
-
-      let title = "Failed to upload document";
-      let description = msg;
-
-      if (msg.includes("name_mismatch_document")) {
-        title = "Name does not match document";
-        description = "The name on your ID document does not match the name you provided. Please go back and correct your name, or use the correct document.";
-      }
-
-      toast({ title, description, variant: "destructive" });
+      console.error("[Document] Upload error:", error);
+      toast({
+        title: "Failed to upload document",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
       onError(error as Error);
     } finally {
       setIsProcessing(false);
