@@ -17,10 +17,14 @@ const Landing = () => {
   const handleStartFlow = async (flowType: "guest" | "visitor") => {
     setIsLoading(flowType);
     try {
-      const response = await api.verify({
-        action: "start",
-        flow_type: flowType,
-      } as any);
+      const response = await api.verify(
+        flowType === "visitor"
+          ? { action: "start_visitor" }
+          : {
+              action: "start",
+              flow_type: flowType,
+            },
+      );
 
       const token = response.session_token || response.verify_url?.split("/").pop();
       if (token) {
