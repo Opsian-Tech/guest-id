@@ -79,10 +79,7 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       console.log(`[Selfie] Optimized size: ${Math.round(optimizeResult.sizeBytes / 1024)}KB`);
 
       // Strip the data URI prefix to get clean base64
-      const cleanBase64 = optimizeResult.dataUrl.replace(
-        /^data:image\/\w+;base64,/,
-        ""
-      );
+      const cleanBase64 = optimizeResult.dataUrl.replace(/^data:image\/\w+;base64,/, "");
 
       console.log("[Selfie] Sending verification request...");
 
@@ -110,10 +107,8 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       // Parse multi-guest fields from BOTH locations with type coercion
       const guestVerifiedRaw = responseData.guest_verified ?? response.guest_verified;
       // IMPORTANT: guest_verified may not exist yet - fallback to is_verified
-      const guestVerified = guestVerifiedRaw !== undefined 
-        ? parseBool(guestVerifiedRaw) 
-        : isVerified;
-      
+      const guestVerified = guestVerifiedRaw !== undefined ? parseBool(guestVerifiedRaw) : isVerified;
+
       const requiresAdditionalGuestRaw = responseData.requires_additional_guest ?? response.requires_additional_guest;
       const verifiedGuestCountRaw = responseData.verified_guest_count ?? response.verified_guest_count;
       const expectedGuestCountRaw = responseData.expected_guest_count ?? response.expected_guest_count;
@@ -138,8 +133,8 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       if (!guestVerified) {
         console.log("[Selfie] Guest verification FAILED, allowing retake");
         toast({
-          title: t('selfie.verificationFailed'),
-          description: t('selfie.retakeSelfie'),
+          title: t("selfie.verificationFailed"),
+          description: t("selfie.retakeSelfie"),
           variant: "destructive",
         });
         setCapturedImage(null); // Clear for retake
@@ -159,9 +154,8 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       const session = sessionRes.session;
 
       // Extract visitor access code from response (for visitor flow)
-      const visitorAccessCode = (response as any).access_code || 
-                                (responseData as any).access_code ||
-                                (session as any)?.visitor_access_code;
+      const visitorAccessCode =
+        (response as any).access_code || (responseData as any).access_code || (session as any)?.visitor_access_code;
 
       if (!session) {
         console.error("[Selfie] No session in get_session response");
@@ -185,14 +179,14 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
 
         if (fallbackRequiresAdditional) {
           toast({
-            title: t('selfie.guestVerified', {
+            title: t("selfie.guestVerified", {
               verified: fallbackVerifiedCount,
               next: fallbackVerifiedCount + 1,
             }),
           });
           onNextGuest();
         } else {
-          toast({ title: t('selfie.identityVerified') });
+          toast({ title: t("selfie.identityVerified") });
           onNext();
         }
         return;
@@ -213,13 +207,11 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       });
 
       // Extract Cloudbeds integration fields
-      const physicalRoom = 
-        (response as any).physical_room || 
-        (responseData as any).physical_room ||
-        (session as any)?.physical_room;
-      
-      const roomAccessCode = 
-        (response as any).room_access_code || 
+      const physicalRoom =
+        (response as any).physical_room || (responseData as any).physical_room || (session as any)?.physical_room;
+
+      const roomAccessCode =
+        (response as any).room_access_code ||
         (responseData as any).room_access_code ||
         (session as any)?.room_access_code;
 
@@ -245,7 +237,7 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
         // More guests needed - loop back to document step
         console.log("[Selfie] Additional guest required, looping to document step");
         toast({
-          title: t('selfie.guestVerified', {
+          title: t("selfie.guestVerified", {
             verified: authVerifiedGuestCount,
             next: authVerifiedGuestCount + 1,
           }),
@@ -254,7 +246,7 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       } else {
         // All guests verified - go to results
         console.log("[Selfie] All guests verified, proceeding to results");
-        toast({ title: t('selfie.identityVerified') });
+        toast({ title: t("selfie.identityVerified") });
         onNext();
       }
     } catch (error) {
@@ -278,22 +270,13 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       transition={{ duration: 0.3 }}
       className="glass rounded-3xl p-8 md:p-12"
     >
-      <Button
-        variant="ghost"
-        onClick={onBack}
-        className="text-white hover:bg-white/20 mb-4"
-        disabled={isProcessing}
-      >
+      <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/20 mb-4" disabled={isProcessing}>
         <ArrowLeft className="w-5 h-5 mr-2" />
-        {t('selfie.back')}
+        {t("selfie.back")}
       </Button>
 
-      <h2 className="text-3xl md:text-4xl font-thin text-white mb-4 text-center">
-        {t('selfie.title')}
-      </h2>
-      <p className="text-white/80 text-center mb-8">
-        {t('selfie.instruction')}
-      </p>
+      <h2 className="text-3xl md:text-4xl font-thin text-white mb-4 text-center">{t("selfie.title")}</h2>
+      <p className="text-white/80 text-center mb-8">{t("selfie.instruction")}</p>
 
       {isProcessing ? (
         <div className="text-center py-20">
@@ -302,41 +285,25 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full mx-auto mb-4"
           />
-          <p className="text-white text-xl">{t('selfie.verifying')}</p>
-          <p className="text-white/70 text-lg mt-2">{t('selfie.processingTM30')}</p>
+          <p className="text-white text-xl">{t("selfie.verifying")}</p>
+          <p className="text-white/70 text-lg mt-2">{t("selfie.processingTM30")}</p>
         </div>
       ) : capturedImage ? (
         <div className="space-y-6">
           <div className="relative rounded-2xl overflow-hidden border-2 border-white/20">
-            <img 
-              src={capturedImage} 
-              alt="Captured selfie" 
-              className="w-full h-auto"
-            />
+            <img src={capturedImage} alt="Captured selfie" className="w-full h-auto" />
           </div>
           <div className="flex gap-4">
-            <Button
-              onClick={handleRetake}
-              variant="glass"
-              className="flex-1"
-            >
-              {t('selfie.retake')}
+            <Button onClick={handleRetake} variant="glass" className="flex-1">
+              {t("selfie.retake")}
             </Button>
-            <Button
-              onClick={handleConfirmUpload}
-              variant="glass"
-              className="flex-1"
-            >
-              {t('selfie.confirm')}
+            <Button onClick={handleConfirmUpload} variant="glass" className="flex-1">
+              {t("selfie.confirm")}
             </Button>
           </div>
         </div>
       ) : (
-        <CameraCapture
-          onCapture={handleCapture}
-          facingMode="user"
-          overlayType="face"
-        />
+        <CameraCapture onCapture={handleCapture} facingMode="user" overlayType="face" />
       )}
     </motion.div>
   );
