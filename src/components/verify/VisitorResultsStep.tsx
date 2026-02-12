@@ -41,7 +41,7 @@ const VisitorResultsStep = ({ data, onHome }: Props) => {
   const accessCode = useMemo(() => {
     console.log("[VisitorResults] Full data object:", data);
     console.log("[VisitorResults] visitorAccessCode:", data.visitorAccessCode);
-    
+
     const raw = (data.visitorAccessCode || "").toString().trim();
     if (!raw.length) {
       console.warn("[VisitorResults] No access code available in data");
@@ -102,14 +102,15 @@ const VisitorResultsStep = ({ data, onHome }: Props) => {
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="bg-white rounded-2xl p-8 mb-8 shadow-lg"
+        className="bg-white rounded-2xl p-8 mb-8 shadow-lg border-2 border-green-500/20"
       >
-        <p className="text-gray-500 text-sm mb-2 uppercase tracking-wide">{t("visitor.accessCode")}</p>
+        <p className="text-gray-500 text-sm mb-2 uppercase tracking-wide font-bold">{t("visitor.accessCode")}</p>
 
         <p className="text-6xl md:text-7xl font-bold text-gray-900 tracking-widest select-all">{accessCode}</p>
 
-        <p className="text-gray-500 text-xs mt-3">
-          {t("visitor.showAtDoor", { defaultValue: "Show this code at the door keypad." })}
+        <p className="text-green-600 text-xs mt-3 font-semibold flex items-center justify-center gap-1">
+          <CheckCircle2 className="w-3 h-3" />
+          {t("visitor.showAtDoor", { defaultValue: "Valid for entry to the property" })}
         </p>
       </motion.div>
 
@@ -126,7 +127,6 @@ const VisitorResultsStep = ({ data, onHome }: Props) => {
           <p className="text-white text-lg">
             <span className="text-white/60">{t("visitor.purpose")}:</span> {data.visitorReason}
           </p>
-
         </div>
       </div>
 
